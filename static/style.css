@@ -52,6 +52,29 @@ body {
   margin-bottom: 10px;
 }
 
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.header-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.header-brand-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #E31937;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+}
+
 .header-title {
   font-size: 34px;
   font-weight: 700;
