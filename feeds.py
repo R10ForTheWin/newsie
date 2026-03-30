@@ -128,4 +128,106 @@ FEEDS = [
         "tab": "today",
         "is_google_news": True,
     },
+    # ── New additions ──────────────────────────────────────────────────────
+    {
+        "id": "bbc",
+        "name": "BBC News",
+        "short": "BBC",
+        "urls": [
+            "http://feeds.bbci.co.uk/news/rss.xml",
+            "http://feeds.bbci.co.uk/news/world/rss.xml",
+        ],
+        "category": "News",
+        "color": "#B80000",
+        "tab": "today",
+    },
+    {
+        "id": "atlantic",
+        "name": "The Atlantic",
+        "short": "Atlantic",
+        "urls": [
+            "https://www.theatlantic.com/feed/all/",
+        ],
+        "category": "News",
+        "color": "#C0392B",
+        "tab": "today",
+    },
+    {
+        "id": "wired",
+        "name": "Wired",
+        "short": "Wired",
+        "urls": [
+            "https://www.wired.com/feed/rss",
+        ],
+        "category": "Tech",
+        "color": "#000000",
+        "tab": "today",
+    },
+    {
+        "id": "time",
+        "name": "Time",
+        "short": "Time",
+        "urls": [
+            "https://time.com/feed/",
+        ],
+        "category": "News",
+        "color": "#CC0000",
+        "tab": "today",
+    },
+    {
+        "id": "vogue",
+        "name": "Vogue",
+        "short": "Vogue",
+        "urls": [
+            "https://www.vogue.com/feed/rss",
+        ],
+        "category": "Lifestyle",
+        "color": "#000000",
+        "tab": "today",
+    },
+    {
+        "id": "hollywoodreporter",
+        "name": "Hollywood Reporter",
+        "short": "THR",
+        "urls": [
+            "https://www.hollywoodreporter.com/feed/",
+        ],
+        "category": "Entertainment",
+        "color": "#1C3F6E",
+        "tab": "entertainment",
+    },
+    {
+        "id": "rollingstone",
+        "name": "Rolling Stone",
+        "short": "RS",
+        "urls": [
+            "https://www.rollingstone.com/feed/",
+        ],
+        "category": "Entertainment",
+        "color": "#D4232A",
+        "tab": "entertainment",
+    },
+    {
+        "id": "espn",
+        "name": "ESPN",
+        "short": "ESPN",
+        "urls": [
+            "https://www.espn.com/espn/rss/news",
+        ],
+        "category": "Sports",
+        "color": "#CC0000",
+        "tab": "sports",
+    },
+    {
+        "id": "bloomberg",
+        "name": "Bloomberg",
+        "short": "Bloomberg",
+        "urls": [
+            "https://news.google.com/rss/search?q=site:bloomberg.com&hl=en-US&gl=US&ceid=US:en",
+        ],
+        "category": "Business",
+        "color": "#1B1B1B",
+        "tab": "today",
+        "is_google_news": True,
+    },
 ]
