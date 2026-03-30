@@ -10,19 +10,8 @@ const state = {
   lastFetch: null,
 };
 
-const TAB_TITLES = {
-  today: 'Today',
-  sports: 'Sports',
-  entertainment: 'Entertainment',
-  following: 'Following',
-};
-
-const TAB_COLORS = {
-  today: '#FF3B30',
-  sports: '#34C759',
-  entertainment: '#AF52DE',
-  following: '#007AFF',
-};
+const TAB_TITLES  = { today: 'Today', sports: 'Sports', entertainment: 'Entertainment', following: 'Following' };
+const TAB_COLORS  = { today: '#FF3A30', sports: '#30D158', entertainment: '#FF375F', following: '#0A84FF' };
 
 // ── Boot ───────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -37,27 +26,20 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── Header ─────────────────────────────────────────────────────────────────
 function setHeaderDate() {
   const el = document.getElementById('header-date');
-  if (!el) return;
-  el.textContent = new Date().toLocaleDateString('en-US', {
-    weekday: 'long', month: 'long', day: 'numeric',
-  });
+  if (el) el.textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
-// ── Desktop sidebar nav ────────────────────────────────────────────────────
+// ── Desktop nav ────────────────────────────────────────────────────────────
 function injectDesktopNav() {
   if (window.innerWidth < 768) return;
-  const app = document.getElementById('app');
   const nav = document.createElement('nav');
   nav.id = 'desktop-nav';
-
-  const tabs = [
-    { tab: 'today', label: 'Today', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="4" x2="9" y2="9"/><line x1="15" y1="4" x2="15" y2="9"/><line x1="7" y1="13" x2="12" y2="13"/><line x1="7" y1="17" x2="10" y2="17"/></svg>` },
-    { tab: 'sports', label: 'Sports', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3c0 0-3 4-3 9s3 9 3 9"/><path d="M12 3c0 0 3 4 3 9s-3 9-3 9"/><path d="M3 12h18"/></svg>` },
-    { tab: 'entertainment', label: 'Entertainment', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>` },
-    { tab: 'following', label: 'Following', icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>` },
-  ];
-
-  tabs.forEach(({ tab, label, icon }) => {
+  [
+    { tab: 'today',         label: 'Today',         icon: iconNewspaper() },
+    { tab: 'sports',        label: 'Sports',        icon: iconSports() },
+    { tab: 'entertainment', label: 'Entertainment', icon: iconStar() },
+    { tab: 'following',     label: 'Following',     icon: iconHeart() },
+  ].forEach(({ tab, label, icon }) => {
     const btn = document.createElement('button');
     btn.className = 'desktop-nav-btn' + (tab === 'today' ? ' active' : '');
     btn.dataset.tab = tab;
@@ -65,51 +47,40 @@ function injectDesktopNav() {
     btn.addEventListener('click', () => switchTab(tab));
     nav.appendChild(btn);
   });
-
-  app.insertBefore(nav, document.getElementById('main'));
+  document.getElementById('app').insertBefore(nav, document.getElementById('main'));
 }
 
 // ── Sources ────────────────────────────────────────────────────────────────
 async function loadSources() {
   try {
-    const res = await fetch('/api/sources');
-    const data = await res.json();
+    const data = await fetch('/api/sources').then(r => r.json());
     state.sources = data.sources;
     renderSourceChips();
-  } catch (_) { /* non-fatal */ }
+  } catch (_) {}
 }
 
 function renderSourceChips() {
   const container = document.getElementById('source-chips');
   if (!container) return;
-
-  const tabSources = state.currentTab === 'today'
+  const list = state.currentTab === 'today'
     ? state.sources
     : state.sources.filter(s => s.tab === state.currentTab);
 
-  const chips = [
-    makeChip('all', 'All', state.currentSource === 'all'),
-    ...tabSources.map(s => makeChip(s.id, s.short, state.currentSource === s.id, s.color)),
-  ];
-
   container.innerHTML = '';
-  chips.forEach(c => container.appendChild(c));
-}
-
-function makeChip(id, label, active, color) {
-  const btn = document.createElement('button');
-  btn.className = 'chip' + (active ? ' active' : '');
-  btn.textContent = label;
-  btn.dataset.source = id;
-  if (active && color) btn.style.background = color;
-  btn.addEventListener('click', () => {
-    state.currentSource = id;
-    renderSourceChips();
-    loadArticles();
-    document.getElementById('main').scrollTo({ top: 0, behavior: 'smooth' });
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+  [{ id: 'all', short: 'All', color: null }, ...list].forEach(s => {
+    const btn = document.createElement('button');
+    const active = state.currentSource === s.id;
+    btn.className = 'chip' + (active ? ' active' : '');
+    btn.textContent = s.short;
+    if (active && s.color) btn.style.background = s.color;
+    btn.addEventListener('click', () => {
+      state.currentSource = s.id;
+      renderSourceChips();
+      loadArticles();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    container.appendChild(btn);
   });
-  return btn;
 }
 
 // ── Articles ───────────────────────────────────────────────────────────────
@@ -123,24 +94,12 @@ async function loadArticles() {
   try {
     const params = new URLSearchParams({ tab: state.currentTab });
     if (state.currentSource !== 'all') params.set('source', state.currentSource);
-
-    const res = await fetch(`/api/articles?${params}`);
-    if (!res.ok) throw new Error('Network error');
-    const data = await res.json();
+    const data = await fetch(`/api/articles?${params}`).then(r => { if (!r.ok) throw 0; return r.json(); });
     state.articles = data.articles;
     state.lastFetch = new Date();
-
-    if (state.currentTab === 'following') {
-      renderFollowing();
-    } else {
-      renderFeed();
-    }
-  } catch (err) {
-    feed.innerHTML = `
-      <div class="error-state">
-        <p>Couldn't load articles.</p>
-        <button class="retry-btn" onclick="loadArticles()">Try Again</button>
-      </div>`;
+    state.currentTab === 'following' ? renderFollowing() : renderFeed();
+  } catch {
+    feed.innerHTML = `<div class="error-state"><p>Couldn't load articles.</p><button class="retry-btn" onclick="loadArticles()">Try Again</button></div>`;
   } finally {
     state.loading = false;
   }
@@ -149,60 +108,59 @@ async function loadArticles() {
 // ── Feed Render ────────────────────────────────────────────────────────────
 function renderFeed() {
   const feed = document.getElementById('feed');
-  const articles = state.articles;
+  const articles = applyPrefs(state.articles);
 
   if (!articles.length) {
-    feed.innerHTML = '<div class="empty-state"><p>No articles found.</p></div>';
+    feed.innerHTML = '<div class="empty-state"><p>No articles.</p></div>';
     return;
   }
 
   const frag = document.createDocumentFragment();
 
-  // Hero block: first article as big card, next 2 as sub-items
-  const heroGroup = articles.slice(0, 3);
-  const hero = heroGroup[0];
-  const heroEl = buildHeroCard(hero, heroGroup.slice(1));
-  frag.appendChild(heroEl);
+  // Hero: first article with large image
+  frag.appendChild(buildHeroCard(articles[0]));
 
-  // 2-col grid: next 4 articles with images
-  const withImages = articles.slice(3).filter(a => a.image);
-  const noImages = articles.slice(3).filter(a => !a.image);
-  const gridItems = withImages.splice(0, 4);
+  // 2-col grid: next articles that have images
+  const withImg  = articles.slice(1).filter(a => a.image);
+  const withoutImg = articles.slice(1).filter(a => !a.image);
+  const gridItems = withImg.splice(0, 4);
 
   if (gridItems.length >= 2) {
     const grid = document.createElement('div');
     grid.className = 'card-grid';
-    gridItems.forEach(a => grid.appendChild(buildStandardCard(a)));
+    gridItems.forEach(a => grid.appendChild(buildGridCard(a)));
     frag.appendChild(grid);
   } else {
-    // fold them back into the list
-    withImages.unshift(...gridItems);
+    withImg.unshift(...gridItems);
   }
 
-  // Remaining as list cards, with section dividers
-  const remaining = [...withImages, ...noImages].sort(
-    (a, b) => new Date(b.published) - new Date(a.published)
-  );
+  // Remaining: grouped into Apple News-style sections by source
+  const remaining = [...withImg, ...withoutImg].sort((a, b) => new Date(b.published) - new Date(a.published));
 
-  let lastSection = null;
-  remaining.forEach((article, i) => {
-    if (state.currentSource === 'all' && i % 6 === 0 && article.source !== lastSection) {
-      if (i > 0) {
-        const sep = document.createElement('div');
-        sep.className = 'section-sep';
-        sep.innerHTML = `<div class="section-sep-line"></div>`;
-        frag.appendChild(sep);
-      }
-      const secEl = document.createElement('div');
-      secEl.className = 'section-header';
-      secEl.innerHTML = `<span class="section-title" style="color:${esc(article.color)}">${esc(article.source)}</span>`;
-      frag.appendChild(secEl);
-      lastSection = article.source;
+  // Group into runs of same source (max 4 per group) for Apple News style
+  const groups = [];
+  remaining.forEach(a => {
+    const last = groups[groups.length - 1];
+    if (last && last[0].source_id === a.source_id && last.length < 4) {
+      last.push(a);
+    } else {
+      groups.push([a]);
     }
-    frag.appendChild(buildListCard(article));
   });
 
-  // Updated badge
+  groups.forEach(group => {
+    const section = document.createElement('div');
+    section.className = 'news-section';
+    if (state.currentSource === 'all') {
+      const hdr = document.createElement('div');
+      hdr.className = 'section-from-header';
+      hdr.innerHTML = `<span class="section-from-name" style="color:${esc(group[0].color)}">${esc(group[0].source)}</span>`;
+      section.appendChild(hdr);
+    }
+    group.forEach(a => section.appendChild(buildRowCard(a)));
+    frag.appendChild(section);
+  });
+
   if (state.lastFetch) {
     const badge = document.createElement('p');
     badge.className = 'updated-badge';
@@ -217,50 +175,42 @@ function renderFeed() {
 // ── Following Render ───────────────────────────────────────────────────────
 function renderFollowing() {
   const feed = document.getElementById('feed');
-  const articles = state.articles;
+  const articles = applyPrefs(state.articles);
 
-  if (!articles.length) {
-    feed.innerHTML = '<div class="empty-state"><p>No articles found.</p></div>';
-    return;
-  }
+  if (!articles.length) { feed.innerHTML = '<div class="empty-state"><p>No articles.</p></div>'; return; }
 
-  // Group by source preserving order
-  const order = [];
+  // Group by source, order by source weight (liked sources first)
+  const prefs = getPrefs();
   const bySource = {};
+  const order = [];
   articles.forEach(a => {
-    if (!bySource[a.source_id]) {
-      bySource[a.source_id] = { meta: a, items: [] };
-      order.push(a.source_id);
-    }
+    if (!bySource[a.source_id]) { bySource[a.source_id] = { meta: a, items: [] }; order.push(a.source_id); }
     bySource[a.source_id].items.push(a);
   });
+  order.sort((a, b) => (prefs.weights[b] || 1) - (prefs.weights[a] || 1));
 
   const frag = document.createDocumentFragment();
-
   order.forEach(id => {
     const { meta, items } = bySource[id];
-
     const section = document.createElement('div');
     section.className = 'following-section';
 
-    const header = document.createElement('div');
-    header.className = 'section-header';
-    header.innerHTML = `<span class="section-title" style="color:${esc(meta.color)}">${esc(meta.source)}</span>`;
-    section.appendChild(header);
+    const hdr = document.createElement('div');
+    hdr.className = 'following-section-header';
+    hdr.innerHTML = `<span class="following-section-name" style="color:${esc(meta.color)}">${esc(meta.source)}</span>`;
+    section.appendChild(hdr);
 
-    const scrollWrap = document.createElement('div');
-    scrollWrap.className = 'horiz-scroll-wrap';
-    const scrollRow = document.createElement('div');
-    scrollRow.className = 'horiz-scroll';
-
-    items.slice(0, 8).forEach(a => scrollRow.appendChild(buildHorizCard(a)));
-    scrollWrap.appendChild(scrollRow);
-    section.appendChild(scrollWrap);
+    const wrap = document.createElement('div');
+    wrap.className = 'horiz-scroll-wrap';
+    const row = document.createElement('div');
+    row.className = 'horiz-scroll';
+    items.slice(0, 8).forEach(a => row.appendChild(buildHorizCard(a)));
+    wrap.appendChild(row);
+    section.appendChild(wrap);
 
     const sep = document.createElement('div');
-    sep.innerHTML = '<div class="section-sep-line" style="margin-top:14px"></div>';
+    sep.style.cssText = 'height:0.5px;background:var(--separator);margin:14px 0 0';
     section.appendChild(sep);
-
     frag.appendChild(section);
   });
 
@@ -269,115 +219,175 @@ function renderFollowing() {
 }
 
 // ── Card Builders ──────────────────────────────────────────────────────────
-function buildHeroCard(article, subArticles) {
-  const el = makeCardEl('card card-hero', article.link);
+function buildHeroCard(article) {
+  const el = document.createElement('div');
+  el.className = 'card-hero';
 
-  let inner = '';
-  if (article.image) {
-    inner += `<div class="card-img-wrap"><img src="${esc(article.image)}" alt="" loading="eager" onerror="this.parentElement.remove()"></div>`;
-  }
+  const imgHtml = article.image
+    ? `<div class="card-hero-img-wrap"><img src="${esc(article.image)}" alt="" loading="eager" onerror="this.parentElement.remove()"></div>`
+    : '';
 
-  inner += `<div class="card-body">
-    <span class="card-source" style="color:${esc(article.color)}">${esc(article.source)}</span>
-    <h2 class="card-title">${esc(article.title)}</h2>
-    ${article.summary ? `<p class="card-summary">${esc(article.summary)}</p>` : ''}
-    <span class="card-time">${esc(article.time_ago)}</span>
-  </div>`;
-
-  if (subArticles && subArticles.length) {
-    inner += '<div class="hero-sub">';
-    subArticles.forEach(sub => {
-      const subEl = document.createElement('div');
-      subEl.className = 'hero-sub-item';
-      subEl.innerHTML = `
-        <div class="card-title">${esc(sub.title)}</div>
-        <div class="card-meta">
-          <span class="card-source" style="color:${esc(sub.color)}">${esc(sub.source)}</span>
-          <span class="card-time">${esc(sub.time_ago)}</span>
-        </div>`;
-      subEl.addEventListener('click', e => { e.stopPropagation(); openUrl(sub.link); });
-      // Return raw HTML — we'll append after setting innerHTML
-      inner += `<div data-sub-placeholder="${esc(sub.link)}"></div>`;
-    });
-    inner += '</div>';
-  }
-
-  el.innerHTML = inner;
-
-  // Replace placeholders with real sub-items (needed to attach click handlers)
-  if (subArticles && subArticles.length) {
-    subArticles.forEach(sub => {
-      const ph = el.querySelector(`[data-sub-placeholder="${CSS.escape(sub.link)}"]`);
-      if (!ph) return;
-      const subEl = document.createElement('div');
-      subEl.className = 'hero-sub-item';
-      subEl.innerHTML = `
-        <div class="card-title">${esc(sub.title)}</div>
-        <div class="card-meta">
-          <span class="card-source" style="color:${esc(sub.color)}">${esc(sub.source)}</span>
-          <span class="card-time">${esc(sub.time_ago)}</span>
-        </div>`;
-      subEl.addEventListener('click', e => { e.stopPropagation(); openUrl(sub.link); });
-      ph.replaceWith(subEl);
-    });
-  }
-
-  return el;
-}
-
-function buildStandardCard(article) {
-  const el = makeCardEl('card card-standard', article.link);
   el.innerHTML = `
-    ${article.image
-      ? `<div class="card-img-wrap"><img src="${esc(article.image)}" alt="" loading="lazy" onerror="this.parentElement.remove()"></div>`
-      : `<div class="card-img-wrap" style="background:${esc(article.color)}18;height:110px;display:flex;align-items:center;justify-content:center"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="${esc(article.color)}" stroke-width="1.5" opacity=".4"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg></div>`}
-    <div class="card-body">
-      <span class="card-source" style="color:${esc(article.color)}">${esc(article.source)}</span>
-      <h3 class="card-title">${esc(article.title)}</h3>
-      <span class="card-time">${esc(article.time_ago)}</span>
+    ${imgHtml}
+    <div class="card-hero-body">
+      <span class="card-hero-source" style="color:${esc(article.color)}">${esc(article.source)}</span>
+      <h2 class="card-hero-title">${esc(article.title)}</h2>
+      ${article.summary ? `<p class="card-hero-summary">${esc(article.summary)}</p>` : ''}
     </div>`;
+
+  el.querySelector('.card-hero-body').appendChild(buildFeedbackRow(article, el));
+  el.addEventListener('click', e => { if (!e.target.closest('.feedback-btn')) openUrl(article.link); });
   return el;
 }
 
-function buildListCard(article) {
-  const el = makeCardEl('card card-list', article.link);
+function buildRowCard(article) {
+  const el = document.createElement('div');
+  el.className = 'card-row';
+
+  const thumb = article.image
+    ? `<img class="card-row-thumb" src="${esc(article.image)}" alt="" loading="lazy" onerror="this.replaceWith(document.createElement('div'))">`
+    : `<div class="card-row-thumb-placeholder"></div>`;
+
   el.innerHTML = `
-    <div class="card-text">
-      <span class="card-source" style="color:${esc(article.color)}">${esc(article.source)}</span>
-      <h3 class="card-title">${esc(article.title)}</h3>
-      <div class="card-meta">
-        <span class="card-time">${esc(article.time_ago)}</span>
+    <div class="card-row-text">
+      <div class="card-row-meta">
+        <span class="card-row-source" style="color:${esc(article.color)}">${esc(article.source)}</span>
+        <span class="card-row-dot">·</span>
+        <span class="card-row-time">${esc(article.time_ago)}</span>
+        <div class="card-row-feedback"></div>
       </div>
+      <h3 class="card-row-title">${esc(article.title)}</h3>
     </div>
-    ${article.image ? `<img class="card-thumb" src="${esc(article.image)}" alt="" loading="lazy" onerror="this.remove()">` : ''}`;
+    ${thumb}`;
+
+  // Inject feedback buttons into the meta row
+  el.querySelector('.card-row-feedback').replaceWith(buildFeedbackRow(article, el));
+  el.addEventListener('click', e => { if (!e.target.closest('.feedback-btn')) openUrl(article.link); });
+  return el;
+}
+
+function buildGridCard(article) {
+  const el = document.createElement('div');
+  el.className = 'card-grid-item';
+
+  el.innerHTML = article.image
+    ? `<img class="card-grid-img" src="${esc(article.image)}" alt="" loading="lazy" onerror="this.style.display='none'">`
+    : `<div class="card-grid-img-placeholder"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--label-3)"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg></div>`;
+
+  el.innerHTML += `
+    <div class="card-grid-body">
+      <span class="card-grid-source" style="color:${esc(article.color)}">${esc(article.source)}</span>
+      <h3 class="card-grid-title">${esc(article.title)}</h3>
+      <span class="card-grid-time">${esc(article.time_ago)}</span>
+    </div>`;
+
+  el.addEventListener('click', () => openUrl(article.link));
   return el;
 }
 
 function buildHorizCard(article) {
-  const el = makeCardEl('card card-horiz', article.link);
+  const el = document.createElement('div');
+  el.className = 'card-horiz';
   el.innerHTML = `
     ${article.image
-      ? `<div class="card-img-wrap"><img src="${esc(article.image)}" alt="" loading="lazy" onerror="this.parentElement.remove()"></div>`
-      : `<div class="card-img-wrap" style="background:${esc(article.color)}18;height:100px"></div>`}
-    <div class="card-body">
-      <h3 class="card-title">${esc(article.title)}</h3>
-      <span class="card-time">${esc(article.time_ago)}</span>
+      ? `<img class="card-horiz-img" src="${esc(article.image)}" alt="" loading="lazy" onerror="this.style.background='var(--fill-1)'">`
+      : `<div class="card-horiz-img"></div>`}
+    <div class="card-horiz-body">
+      <span class="card-horiz-source" style="color:${esc(article.color)}">${esc(article.source)}</span>
+      <h3 class="card-horiz-title">${esc(article.title)}</h3>
+      <span class="card-horiz-time">${esc(article.time_ago)}</span>
     </div>`;
+  el.addEventListener('click', () => openUrl(article.link));
   return el;
 }
 
-function makeCardEl(className, url) {
-  const el = document.createElement('div');
-  el.className = className;
-  el.addEventListener('click', () => openUrl(url));
-  return el;
+// ─────────────────────────────────────────────────────────
+// PREFERENCES & FEEDBACK
+// ─────────────────────────────────────────────────────────
+const PREFS_KEY = 'newsie_prefs';
+
+function getPrefs() {
+  try { return JSON.parse(localStorage.getItem(PREFS_KEY)) || { hidden: [], liked: [], weights: {} }; }
+  catch { return { hidden: [], liked: [], weights: {} }; }
+}
+function savePrefs(p) {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch {}
+}
+
+function applyPrefs(articles) {
+  const { hidden, liked, weights } = getPrefs();
+  const hiddenSet = new Set(hidden);
+  const likedSet  = new Set(liked);
+  return articles
+    .filter(a => !hiddenSet.has(a.id))
+    .map(a => ({ ...a, _liked: likedSet.has(a.id), _w: weights[a.source_id] ?? 1 }))
+    .sort((a, b) => {
+      const hoursOld = iso => (Date.now() - new Date(iso)) / 3_600_000;
+      return (1 / (hoursOld(b.published) + 1)) * b._w - (1 / (hoursOld(a.published) + 1)) * a._w;
+    });
+}
+
+function likeArticle(id, sourceId, btn) {
+  const p = getPrefs();
+  const idx = p.liked.indexOf(id);
+  if (idx === -1) {
+    p.liked.push(id);
+    p.weights[sourceId] = Math.min((p.weights[sourceId] ?? 1) + 0.15, 3);
+    btn.classList.add('active');
+  } else {
+    p.liked.splice(idx, 1);
+    p.weights[sourceId] = Math.max((p.weights[sourceId] ?? 1) - 0.15, 0.2);
+    btn.classList.remove('active');
+  }
+  savePrefs(p);
+}
+
+function dismissArticle(id, sourceId, cardEl) {
+  const p = getPrefs();
+  if (!p.hidden.includes(id)) {
+    p.hidden.push(id);
+    p.weights[sourceId] = Math.max((p.weights[sourceId] ?? 1) - 0.1, 0.2);
+    savePrefs(p);
+  }
+  const h = cardEl.offsetHeight;
+  cardEl.style.cssText = `overflow:hidden;transition:max-height 0.28s ease,opacity 0.22s ease,margin-bottom 0.28s ease;max-height:${h}px;opacity:1;margin-bottom:0`;
+  requestAnimationFrame(() => { cardEl.style.maxHeight = '0'; cardEl.style.opacity = '0'; });
+  setTimeout(() => cardEl.remove(), 300);
+}
+
+function buildFeedbackRow(article, cardEl) {
+  const prefs  = getPrefs();
+  const liked  = prefs.liked.includes(article.id);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'card-feedback';
+
+  const likeBtn = document.createElement('button');
+  likeBtn.className = 'feedback-btn like-btn' + (liked ? ' active' : '');
+  likeBtn.setAttribute('aria-label', 'Like');
+  likeBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="${liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>`;
+  likeBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    likeArticle(article.id, article.source_id, likeBtn);
+    const svg = likeBtn.querySelector('svg');
+    svg.setAttribute('fill', likeBtn.classList.contains('active') ? 'currentColor' : 'none');
+  });
+
+  const dismissBtn = document.createElement('button');
+  dismissBtn.className = 'feedback-btn dismiss-btn';
+  dismissBtn.setAttribute('aria-label', 'Not interested');
+  dismissBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>`;
+  dismissBtn.addEventListener('click', e => { e.stopPropagation(); dismissArticle(article.id, article.source_id, cardEl); });
+
+  wrap.appendChild(likeBtn);
+  wrap.appendChild(dismissBtn);
+  return wrap;
 }
 
 // ── Tab switching ──────────────────────────────────────────────────────────
 function setupTabBar() {
-  document.querySelectorAll('.tab[data-tab]').forEach(btn => {
-    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-  });
+  document.querySelectorAll('.tab[data-tab]').forEach(btn =>
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
 }
 
 function switchTab(tab) {
@@ -385,23 +395,14 @@ function switchTab(tab) {
   state.currentTab = tab;
   state.currentSource = 'all';
 
-  // Update CSS accent color
-  const color = TAB_COLORS[tab] || '#FF3B30';
+  const color = TAB_COLORS[tab] || '#FF3A30';
   document.documentElement.style.setProperty('--tab-color', color);
 
-  // Update title
   const titleEl = document.getElementById('header-title');
   if (titleEl) titleEl.textContent = TAB_TITLES[tab] || tab;
 
-  // Update bottom tabs
-  document.querySelectorAll('.tab').forEach(t => {
-    t.classList.toggle('active', t.dataset.tab === tab);
-  });
-
-  // Update desktop nav
-  document.querySelectorAll('.desktop-nav-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.tab === tab);
-  });
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.desktop-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
 
   renderSourceChips();
   loadArticles();
@@ -421,52 +422,38 @@ function setupRefreshBtn() {
   });
 }
 
-// ── Pull to Refresh (mobile) ───────────────────────────────────────────────
+// ── Pull-to-refresh ────────────────────────────────────────────────────────
 function setupPullToRefresh() {
-  let startY = 0;
-  let pulling = false;
-  const indicator = document.getElementById('ptr-indicator');
-
-  document.addEventListener('touchstart', e => {
-    startY = e.touches[0].clientY;
-    pulling = window.scrollY === 0;
-  }, { passive: true });
-
-  document.addEventListener('touchmove', e => {
-    if (!pulling) return;
-    const dy = e.touches[0].clientY - startY;
-    if (dy > 60) indicator?.classList.add('visible');
-  }, { passive: true });
-
+  let startY = 0, pulling = false;
+  const ind = document.getElementById('ptr-indicator');
+  document.addEventListener('touchstart', e => { startY = e.touches[0].clientY; pulling = window.scrollY === 0; }, { passive: true });
+  document.addEventListener('touchmove',  e => { if (pulling && e.touches[0].clientY - startY > 60) ind?.classList.add('visible'); }, { passive: true });
   document.addEventListener('touchend', async () => {
-    if (!indicator?.classList.contains('visible')) return;
-    indicator.classList.remove('visible');
-    if (!state.loading) {
-      await fetch('/api/refresh');
-      await loadArticles();
-    }
+    if (!ind?.classList.contains('visible')) return;
+    ind.classList.remove('visible');
+    if (!state.loading) { await fetch('/api/refresh'); await loadArticles(); }
     pulling = false;
   });
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-function openUrl(url) {
-  window.open(url, '_blank', 'noopener,noreferrer');
+function openUrl(url) { window.open(url, '_blank', 'noopener,noreferrer'); }
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-function esc(str) {
-  if (str == null) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+function formatTime(d) {
+  const s = (Date.now() - d) / 1000;
+  if (s < 60)   return 'just now';
+  if (s < 3600) return `${Math.floor(s/60)}m ago`;
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function formatTime(date) {
-  const diff = (Date.now() - date.getTime()) / 1000;
-  if (diff < 60) return 'just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
+// ── Tab SVG icons ──────────────────────────────────────────────────────────
+const svgAttr = `viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"`;
+function iconNewspaper() { return `<svg ${svgAttr}><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="4" x2="9" y2="9"/><line x1="15" y1="4" x2="15" y2="9"/><line x1="7" y1="13" x2="12" y2="13"/><line x1="7" y1="17" x2="10" y2="17"/></svg>`; }
+function iconSports()    { return `<svg ${svgAttr}><circle cx="12" cy="12" r="9"/><path d="M12 3s-3 4-3 9 3 9 3 9"/><path d="M12 3s3 4 3 9-3 9-3 9"/><line x1="3" y1="12" x2="21" y2="12"/></svg>`; }
+function iconStar()      { return `<svg ${svgAttr}><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>`; }
+function iconHeart()     { return `<svg ${svgAttr}><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`; }
