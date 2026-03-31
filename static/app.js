@@ -230,17 +230,36 @@ function buildHeroCard(article) {
   const el = document.createElement('div');
   el.className = 'card-hero';
 
-  const imgHtml = article.image
-    ? `<div class="card-hero-img-wrap"><img src="${esc(article.image)}" alt="" loading="eager" onerror="this.parentElement.remove()"></div>`
-    : '';
-
   el.innerHTML = `
-    ${imgHtml}
     <div class="card-hero-body">
       <span class="card-hero-source" style="color:${esc(article.color)}">${esc(article.source)}</span>
       <h2 class="card-hero-title">${esc(article.title)}</h2>
       ${article.summary ? `<p class="card-hero-summary">${esc(article.summary)}</p>` : ''}
     </div>`;
+
+  if (article.image) {
+    const wrap = document.createElement('div');
+    wrap.className = 'card-hero-img-wrap';
+    const img = document.createElement('img');
+    img.src = article.image;
+    img.alt = '';
+    img.loading = 'eager';
+    img.onerror = () => wrap.remove();
+    wrap.appendChild(img);
+    el.insertBefore(wrap, el.firstChild);
+  } else {
+    lazyLoadOgImage(article.link, imgUrl => {
+      if (imgUrl && el.isConnected) {
+        const wrap = document.createElement('div');
+        wrap.className = 'card-hero-img-wrap';
+        const img = document.createElement('img');
+        img.src = imgUrl;
+        img.alt = '';
+        wrap.appendChild(img);
+        el.insertBefore(wrap, el.firstChild);
+      }
+    });
+  }
 
   el.querySelector('.card-hero-body').appendChild(buildFeedbackRow(article, el));
   el.addEventListener('click', e => { if (!e.target.closest('.feedback-btn')) openUrl(article.link); });
@@ -251,10 +270,6 @@ function buildRowCard(article) {
   const el = document.createElement('div');
   el.className = 'card-row';
 
-  const thumb = article.image
-    ? `<img class="card-row-thumb" src="${esc(article.image)}" alt="" loading="lazy" onerror="this.replaceWith(document.createElement('div'))">`
-    : `<div class="card-row-thumb-placeholder"></div>`;
-
   el.innerHTML = `
     <div class="card-row-text">
       <div class="card-row-meta">
@@ -264,10 +279,31 @@ function buildRowCard(article) {
         <div class="card-row-feedback"></div>
       </div>
       <h3 class="card-row-title">${esc(article.title)}</h3>
-    </div>
-    ${thumb}`;
+    </div>`;
 
-  // Inject feedback buttons into the meta row
+  // Thumb: show if we have image, otherwise lazy-fetch OG image
+  if (article.image) {
+    const img = document.createElement('img');
+    img.className = 'card-row-thumb';
+    img.src = article.image;
+    img.alt = '';
+    img.loading = 'lazy';
+    img.onerror = () => img.remove();
+    el.appendChild(img);
+  } else {
+    lazyLoadOgImage(article.link, img => {
+      if (img && el.isConnected) {
+        const thumb = document.createElement('img');
+        thumb.className = 'card-row-thumb';
+        thumb.src = img;
+        thumb.alt = '';
+        thumb.loading = 'lazy';
+        thumb.onerror = () => thumb.remove();
+        el.appendChild(thumb);
+      }
+    });
+  }
+
   el.querySelector('.card-row-feedback').replaceWith(buildFeedbackRow(article, el));
   el.addEventListener('click', e => { if (!e.target.closest('.feedback-btn')) openUrl(article.link); });
   return el;
@@ -277,10 +313,37 @@ function buildGridCard(article) {
   const el = document.createElement('div');
   el.className = 'card-grid-item';
 
-  el.innerHTML = article.image
-    ? `<img class="card-grid-img" src="${esc(article.image)}" alt="" loading="lazy" onerror="this.style.display='none'">`
-    : `<div class="card-grid-img-placeholder"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--label-3)"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg></div>`;
+  const imgWrap = document.createElement('div');
+  imgWrap.className = 'card-grid-img-wrap';
 
+  if (article.image) {
+    const img = document.createElement('img');
+    img.className = 'card-grid-img';
+    img.src = article.image;
+    img.alt = '';
+    img.loading = 'lazy';
+    img.onerror = () => { img.remove(); imgWrap.style.background = `${article.color}22`; };
+    imgWrap.appendChild(img);
+  } else {
+    // Colored source-branded placeholder — looks designed, not broken
+    imgWrap.style.cssText = `background:linear-gradient(135deg,${article.color}33,${article.color}11);display:flex;align-items:center;justify-content:center`;
+    imgWrap.innerHTML = `<span style="font-size:11px;font-weight:800;color:${esc(article.color)};text-transform:uppercase;letter-spacing:1px;opacity:0.6;text-align:center;padding:8px">${esc(article.source)}</span>`;
+    lazyLoadOgImage(article.link, img => {
+      if (img && imgWrap.isConnected) {
+        imgWrap.innerHTML = '';
+        imgWrap.style.cssText = '';
+        const thumb = document.createElement('img');
+        thumb.className = 'card-grid-img';
+        thumb.src = img;
+        thumb.alt = '';
+        thumb.loading = 'lazy';
+        thumb.onerror = () => thumb.remove();
+        imgWrap.appendChild(thumb);
+      }
+    });
+  }
+
+  el.appendChild(imgWrap);
   el.innerHTML += `
     <div class="card-grid-body">
       <span class="card-grid-source" style="color:${esc(article.color)}">${esc(article.source)}</span>
@@ -617,6 +680,27 @@ function setupPullToRefresh() {
     if (!state.loading) { await fetch('/api/refresh'); await loadArticles(); }
     pulling = false;
   });
+}
+
+// ── OG Image lazy loader ───────────────────────────────────────────────────
+const _ogCache = {};
+const _ogQueue = new Set();
+
+function lazyLoadOgImage(articleUrl, callback) {
+  if (_ogCache[articleUrl] !== undefined) { callback(_ogCache[articleUrl]); return; }
+  if (_ogQueue.has(articleUrl)) return;
+  _ogQueue.add(articleUrl);
+  // Throttle: small delay so we don't fire 100 requests at once
+  setTimeout(async () => {
+    try {
+      const data = await fetch(`/api/ogimage?url=${encodeURIComponent(articleUrl)}`).then(r => r.json());
+      _ogCache[articleUrl] = data.image || null;
+      callback(_ogCache[articleUrl]);
+    } catch {
+      _ogCache[articleUrl] = null;
+    }
+    _ogQueue.delete(articleUrl);
+  }, Math.random() * 800 + 100); // stagger requests 100-900ms
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────

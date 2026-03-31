@@ -32,14 +32,18 @@ def extract_image(entry) -> Optional[str]:
         if url and url.startswith("http"):
             return url
 
-    # media:content
+    # media:content — prefer larger images
     if hasattr(entry, "media_content") and entry.media_content:
-        for m in entry.media_content:
-            if m.get("url", "").startswith("http"):
-                if "image" in m.get("type", "image") or m.get("medium") == "image":
-                    return m["url"]
-        if entry.media_content[0].get("url", "").startswith("http"):
-            return entry.media_content[0]["url"]
+        candidates = [m for m in entry.media_content if m.get("url", "").startswith("http")]
+        # sort by width descending if available
+        candidates.sort(key=lambda m: int(m.get("width", 0) or 0), reverse=True)
+        for m in candidates:
+            t = m.get("type", "")
+            med = m.get("medium", "")
+            if "image" in t or med == "image" or (not t and not med):
+                url = m["url"]
+                if not url.endswith(".gif"):
+                    return url
 
     # enclosures
     if hasattr(entry, "enclosures") and entry.enclosures:
@@ -47,21 +51,58 @@ def extract_image(entry) -> Optional[str]:
             if "image" in enc.get("type", "") and enc.get("url", "").startswith("http"):
                 return enc["url"]
 
-    # parse HTML in summary/content for first <img>
-    html = ""
-    if hasattr(entry, "content") and entry.content:
-        html = entry.content[0].get("value", "")
-    elif hasattr(entry, "summary") and entry.summary:
-        html = entry.summary
+    # links with rel="enclosure" or type image
+    if hasattr(entry, "links") and entry.links:
+        for link in entry.links:
+            if "image" in link.get("type", "") and link.get("href", "").startswith("http"):
+                return link["href"]
 
-    if html:
+    # parse HTML in content then summary — look for largest img
+    for attr in ("content", "summary"):
+        html = ""
+        if attr == "content" and hasattr(entry, "content") and entry.content:
+            html = entry.content[0].get("value", "")
+        elif attr == "summary" and hasattr(entry, "summary") and entry.summary:
+            html = entry.summary
+        if not html:
+            continue
         soup = BeautifulSoup(html, "lxml")
-        img = soup.find("img")
-        if img:
+        # skip tiny tracking pixels, prefer wide images
+        for img in soup.find_all("img"):
             src = img.get("src", "")
-            if src.startswith("http") and not src.endswith(".gif"):
-                return src
+            if not src.startswith("http") or src.endswith(".gif"):
+                continue
+            w = int(img.get("width", 0) or 0)
+            h = int(img.get("height", 0) or 0)
+            if w and w < 100:
+                continue  # skip tiny images
+            if h and h < 60:
+                continue
+            return src
 
+    return None
+
+
+_og_cache: dict = {}
+
+async def fetch_og_image(url: str) -> Optional[str]:
+    """Fetch a page and extract its og:image."""
+    if url in _og_cache:
+        return _og_cache[url]
+    try:
+        async with httpx.AsyncClient(timeout=6, follow_redirects=True, headers=HEADERS) as client:
+            r = await client.get(url)
+            soup = BeautifulSoup(r.text, "lxml")
+            for prop in ("og:image", "twitter:image", "og:image:secure_url"):
+                tag = soup.find("meta", property=prop) or soup.find("meta", attrs={"name": prop})
+                if tag:
+                    img = tag.get("content", "")
+                    if img.startswith("http"):
+                        _og_cache[url] = img
+                        return img
+    except Exception:
+        pass
+    _og_cache[url] = None
     return None
 
 
@@ -199,6 +240,13 @@ async def get_sources():
             for f in FEEDS
         ]
     }
+
+
+@app.get("/api/ogimage")
+async def get_og_image(url: str):
+    """Fetch and return the OG image for a given article URL."""
+    image = await fetch_og_image(url)
+    return {"image": image}
 
 
 @app.get("/api/refresh")

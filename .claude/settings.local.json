@@ -13,7 +13,8 @@
       "Bash(cd:*)",
       "Bash(gh auth:*)",
       "Bash(gh repo:*)",
-      "Bash(.venv/bin/python3 -c \"from main import app; from feeds import FEEDS; mags=[f for f in FEEDS if f.get\\(''is_magazine''\\)]; print\\(f''App OK — {len\\(mags\\)} magazines:''\\); [print\\(f''  {m[\"\"name\"\"]}''\\) for m in mags]\")"
+      "Bash(.venv/bin/python3 -c \"from main import app; from feeds import FEEDS; mags=[f for f in FEEDS if f.get\\(''is_magazine''\\)]; print\\(f''App OK — {len\\(mags\\)} magazines:''\\); [print\\(f''  {m[\"\"name\"\"]}''\\) for m in mags]\")",
+      "Bash(curl:*)"
     ]
   }
 }
