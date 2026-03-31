@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupTabBar();
   setupRefreshBtn();
   setupPullToRefresh();
+  setupSettings();
   loadSources().then(() => loadArticles());
 });
 
@@ -98,9 +99,24 @@ async function loadArticles() {
     const params = new URLSearchParams({ tab: fetchTab });
     if (state.currentSource !== 'all') params.set('source', state.currentSource);
     const data = await fetch(`/api/articles?${params}`).then(r => { if (!r.ok) throw 0; return r.json(); });
-    state.articles = data.articles;
+    let articles = data.articles;
+
+    // Merge custom sources
+    const { custom } = getSourceSettings();
+    if (custom.length && (state.currentTab === 'today' || state.currentSource === 'all')) {
+      const customFetches = custom
+        .filter(c => !state.currentSource || state.currentSource === 'all' || state.currentSource === c.id)
+        .map(c => fetch(`/api/custom-articles?url=${encodeURIComponent(c.url)}&name=${encodeURIComponent(c.name)}&color=${encodeURIComponent(c.color || '#888')}&tab=${encodeURIComponent(c.tab || 'today')}`).then(r => r.json()).catch(() => ({ articles: [] })));
+      const customResults = await Promise.all(customFetches);
+      const customArticles = customResults.flatMap(r => r.articles || []);
+      const seenIds = new Set(articles.map(a => a.id));
+      articles = [...articles, ...customArticles.filter(a => !seenIds.has(a.id))];
+      articles.sort((a, b) => new Date(b.published) - new Date(a.published));
+    }
+
+    state.articles = articles;
     state.lastFetch = new Date();
-    if (data.articles.length) allArticlesCache = [...allArticlesCache, ...data.articles].filter((a, i, arr) => arr.findIndex(x => x.id === a.id) === i);
+    if (articles.length) allArticlesCache = [...allArticlesCache, ...articles].filter((a, i, arr) => arr.findIndex(x => x.id === a.id) === i);
     if      (state.currentTab === 'following')  renderFollowing();
     else if (state.currentTab === 'magazines')  renderMagazines();
     else if (state.currentTab === 'search')     renderSearch();
@@ -115,7 +131,7 @@ async function loadArticles() {
 // ── Feed Render ────────────────────────────────────────────────────────────
 function renderFeed() {
   const feed = document.getElementById('feed');
-  const articles = applyPrefs(state.articles);
+  const articles = applySourceSettings(applyPrefs(state.articles));
 
   if (!articles.length) {
     feed.innerHTML = '<div class="empty-state"><p>No articles.</p></div>';
@@ -182,7 +198,7 @@ function renderFeed() {
 // ── Following Render ───────────────────────────────────────────────────────
 function renderFollowing() {
   const feed = document.getElementById('feed');
-  const articles = applyPrefs(state.articles);
+  const articles = applySourceSettings(applyPrefs(state.articles));
 
   if (!articles.length) { feed.innerHTML = '<div class="empty-state"><p>No articles.</p></div>'; return; }
 
@@ -716,6 +732,265 @@ function formatTime(d) {
   if (s < 60)   return 'just now';
   if (s < 3600) return `${Math.floor(s/60)}m ago`;
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// ─────────────────────────────────────────────────────────
+// SOURCE SETTINGS
+// ─────────────────────────────────────────────────────────
+const SETTINGS_KEY = 'newsie_settings';
+
+function getSourceSettings() {
+  try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || { disabled: [], custom: [] }; }
+  catch { return { disabled: [], custom: [] }; }
+}
+function saveSourceSettings(s) {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch {}
+}
+
+function isSourceEnabled(sourceId) {
+  return !getSourceSettings().disabled.includes(sourceId);
+}
+
+function toggleSource(sourceId, toggleEl) {
+  const s = getSourceSettings();
+  const idx = s.disabled.indexOf(sourceId);
+  if (idx === -1) {
+    s.disabled.push(sourceId);
+    toggleEl.classList.remove('on');
+  } else {
+    s.disabled.splice(idx, 1);
+    toggleEl.classList.add('on');
+  }
+  saveSourceSettings(s);
+}
+
+function addCustomSource(source) {
+  const s = getSourceSettings();
+  source.id = 'custom_' + Date.now();
+  s.custom.push(source);
+  saveSourceSettings(s);
+  return source;
+}
+
+function removeCustomSource(id) {
+  const s = getSourceSettings();
+  s.custom = s.custom.filter(c => c.id !== id);
+  saveSourceSettings(s);
+}
+
+// ── Settings Panel UI ──────────────────────────────────────────────────────
+function setupSettings() {
+  const btn     = document.getElementById('settings-btn');
+  const panel   = document.getElementById('settings-panel');
+  const overlay = document.getElementById('settings-overlay');
+  const closeBtn = document.getElementById('settings-close');
+
+  function openSettings() {
+    panel.classList.remove('hidden');
+    overlay.classList.remove('hidden');
+    renderSettingsPanel();
+    // small delay to let display:none clear before animating
+    requestAnimationFrame(() => {
+      panel.style.transform = 'translateX(0)';
+      overlay.style.opacity = '1';
+    });
+  }
+
+  function closeSettings() {
+    panel.classList.add('hidden');
+    overlay.classList.add('hidden');
+    // reload feed to reflect changes
+    state.articles = [];
+    loadArticles();
+  }
+
+  btn?.addEventListener('click', openSettings);
+  closeBtn?.addEventListener('click', closeSettings);
+  overlay?.addEventListener('click', closeSettings);
+
+  setupAddPeriodical();
+  setupAddTopic();
+}
+
+function renderSettingsPanel() {
+  const list = document.getElementById('sources-list');
+  const customList = document.getElementById('custom-sources-list');
+  const customLabel = document.getElementById('custom-label');
+  if (!list) return;
+
+  const settings = getSourceSettings();
+  list.innerHTML = '';
+
+  state.sources.forEach((src, i) => {
+    const enabled = !settings.disabled.includes(src.id);
+    const row = document.createElement('div');
+    row.className = 'settings-source-row';
+
+    const toggle = document.createElement('button');
+    toggle.className = 'toggle' + (enabled ? ' on' : '');
+    toggle.setAttribute('aria-label', enabled ? 'Disable' : 'Enable');
+    toggle.addEventListener('click', e => {
+      e.stopPropagation();
+      toggleSource(src.id, toggle);
+    });
+
+    row.innerHTML = `
+      <span class="source-dot" style="background:${esc(src.color)}"></span>
+      <span class="settings-source-name">${esc(src.name)}</span>
+      <span class="settings-source-category">${esc(src.category)}</span>`;
+    row.appendChild(toggle);
+    row.addEventListener('click', () => toggleSource(src.id, toggle));
+
+    if (i > 0) {
+      const sep = document.createElement('div');
+      sep.style.cssText = 'height:0.5px;background:var(--separator);margin-left:34px';
+      list.appendChild(sep);
+    }
+    list.appendChild(row);
+  });
+
+  // Custom sources
+  customList.innerHTML = '';
+  if (settings.custom.length) {
+    customLabel.style.display = '';
+    settings.custom.forEach((src, i) => {
+      const enabled = !settings.disabled.includes(src.id);
+      const row = document.createElement('div');
+      row.className = 'settings-source-row';
+
+      const toggle = document.createElement('button');
+      toggle.className = 'toggle' + (enabled ? ' on' : '');
+      toggle.addEventListener('click', e => { e.stopPropagation(); toggleSource(src.id, toggle); });
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'settings-delete-btn';
+      delBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+      delBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        if (confirm(`Remove "${src.name}"?`)) {
+          removeCustomSource(src.id);
+          renderSettingsPanel();
+        }
+      });
+
+      row.innerHTML = `
+        <span class="source-dot" style="background:${esc(src.color || '#888')}"></span>
+        <span class="settings-source-name">${esc(src.name)}</span>
+        <span class="settings-source-category">${esc(src.is_topic ? 'Topic' : 'Custom')}</span>`;
+      row.appendChild(delBtn);
+      row.appendChild(toggle);
+
+      if (i > 0) {
+        const sep = document.createElement('div');
+        sep.style.cssText = 'height:0.5px;background:var(--separator);margin-left:34px';
+        customList.appendChild(sep);
+      }
+      customList.appendChild(row);
+    });
+  } else {
+    customLabel.style.display = 'none';
+  }
+}
+
+// ── Add Periodical form ────────────────────────────────────────────────────
+function setupAddPeriodical() {
+  const btn      = document.getElementById('add-periodical-btn');
+  const form     = document.getElementById('add-periodical-form');
+  const backBtn  = document.getElementById('periodical-back');
+  const previewBtn = document.getElementById('periodical-preview-btn');
+  const addBtn   = document.getElementById('periodical-add-btn');
+  const urlInput = document.getElementById('periodical-url');
+  const nameInput = document.getElementById('periodical-name');
+  const resultEl = document.getElementById('periodical-preview-result');
+  const errorEl  = document.getElementById('periodical-error');
+  let previewData = null;
+
+  btn?.addEventListener('click', () => form.classList.remove('hidden'));
+  backBtn?.addEventListener('click', () => {
+    form.classList.add('hidden');
+    urlInput.value = '';
+    nameInput.value = '';
+    resultEl.classList.add('hidden');
+    addBtn.classList.add('hidden');
+    errorEl.classList.add('hidden');
+    previewData = null;
+  });
+
+  previewBtn?.addEventListener('click', async () => {
+    const url = urlInput.value.trim();
+    if (!url) return;
+    previewBtn.textContent = 'Checking…';
+    previewBtn.disabled = true;
+    resultEl.classList.add('hidden');
+    addBtn.classList.add('hidden');
+    errorEl.classList.add('hidden');
+
+    try {
+      const name = nameInput.value.trim();
+      const res = await fetch(`/api/feed-preview?url=${encodeURIComponent(url)}&name=${encodeURIComponent(name)}`).then(r => r.json());
+      if (!res.valid) throw new Error(res.error || 'Invalid feed');
+
+      previewData = { url, name: name || res.name };
+      resultEl.innerHTML = `<div class="preview-result-header">✓ Found ${res.article_count} articles from "${esc(previewData.name)}"</div>` +
+        res.sample.map(a => `<div class="preview-article">${esc(a.title)}</div>`).join('');
+      resultEl.classList.remove('hidden');
+      addBtn.classList.remove('hidden');
+      if (!nameInput.value) nameInput.value = res.name;
+    } catch (e) {
+      errorEl.textContent = e.message || 'Could not load feed. Check the URL.';
+      errorEl.classList.remove('hidden');
+    } finally {
+      previewBtn.textContent = 'Preview Feed';
+      previewBtn.disabled = false;
+    }
+  });
+
+  addBtn?.addEventListener('click', () => {
+    if (!previewData) return;
+    const colors = ['#FF3A30','#007AFF','#34C759','#FF9F0A','#AF52DE','#FF375F','#5AC8FA'];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    addCustomSource({
+      name: nameInput.value.trim() || previewData.name,
+      short: (nameInput.value.trim() || previewData.name).slice(0, 10),
+      url: previewData.url,
+      color,
+      tab: 'today',
+      is_topic: false,
+    });
+    backBtn.click();
+    renderSettingsPanel();
+  });
+}
+
+// ── Add Topic form ─────────────────────────────────────────────────────────
+function setupAddTopic() {
+  const btn      = document.getElementById('add-topic-btn');
+  const form     = document.getElementById('add-topic-form');
+  const backBtn  = document.getElementById('topic-back');
+  const addBtn   = document.getElementById('topic-add-btn');
+  const input    = document.getElementById('topic-name');
+
+  btn?.addEventListener('click', () => form.classList.remove('hidden'));
+  backBtn?.addEventListener('click', () => { form.classList.add('hidden'); input.value = ''; });
+
+  addBtn?.addEventListener('click', () => {
+    const topic = input.value.trim();
+    if (!topic) return;
+    const url = `https://news.google.com/rss/search?q=${encodeURIComponent(topic)}&hl=en-US&gl=US&ceid=US:en`;
+    const colors = ['#0066CC','#34C759','#FF9F0A','#AF52DE','#FF375F'];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    addCustomSource({ name: topic, short: topic.slice(0, 10), url, color, tab: 'today', is_topic: true });
+    backBtn.click();
+    renderSettingsPanel();
+    input.value = '';
+  });
+}
+
+// ── Apply source settings to article list ──────────────────────────────────
+function applySourceSettings(articles) {
+  const { disabled } = getSourceSettings();
+  if (!disabled.length) return articles;
+  return articles.filter(a => !disabled.includes(a.source_id));
 }
 
 // ── Tab SVG icons ──────────────────────────────────────────────────────────

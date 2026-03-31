@@ -36,13 +36,21 @@
             <h1 class="header-title" id="header-title">Today</h1>
             <p class="header-date" id="header-date"></p>
           </div>
-          <button class="icon-btn" id="refresh-btn" title="Refresh" aria-label="Refresh">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M23 4v6h-6"/>
-              <path d="M1 20v-6h6"/>
-              <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
-            </svg>
-          </button>
+          <div class="header-actions">
+            <button class="icon-btn" id="refresh-btn" title="Refresh" aria-label="Refresh">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/>
+              </svg>
+            </button>
+            <button class="icon-btn" id="settings-btn" title="Manage Sources" aria-label="Manage Sources">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+                <path d="M12 2v2M12 20v2M2 12h2M20 12h2"/>
+              </svg>
+            </button>
+          </div>
         </div>
         <div class="source-filter">
           <div class="source-chips" id="source-chips"></div>
@@ -110,6 +118,94 @@
     </nav>
 
   </div>
+  <!-- Settings Panel -->
+  <div id="settings-overlay" class="settings-overlay hidden"></div>
+  <div id="settings-panel" class="settings-panel hidden">
+    <div class="settings-header">
+      <button class="settings-back" id="settings-close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        Done
+      </button>
+      <h2 class="settings-title">Manage Sources</h2>
+    </div>
+
+    <div class="settings-body">
+      <!-- Built-in sources -->
+      <div class="settings-section-label">YOUR SOURCES</div>
+      <div class="settings-card" id="sources-list"></div>
+
+      <!-- Custom sources -->
+      <div class="settings-section-label" id="custom-label" style="display:none">CUSTOM SOURCES</div>
+      <div class="settings-card" id="custom-sources-list"></div>
+
+      <!-- Add buttons -->
+      <div class="settings-section-label">ADD NEW</div>
+      <div class="settings-card">
+        <button class="settings-action-row" id="add-periodical-btn">
+          <span class="settings-action-icon" style="background:#007AFF">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" width="16" height="16"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="12" y1="9" x2="12" y2="15"/><line x1="9" y1="12" x2="15" y2="12"/></svg>
+          </span>
+          <span>Add Periodical</span>
+          <svg class="settings-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <div class="settings-separator"></div>
+        <button class="settings-action-row" id="add-topic-btn">
+          <span class="settings-action-icon" style="background:#34C759">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" width="16" height="16"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+          </span>
+          <span>Add Topic</span>
+          <svg class="settings-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Add Periodical form -->
+    <div id="add-periodical-form" class="settings-form hidden">
+      <div class="settings-header">
+        <button class="settings-back" id="periodical-back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><polyline points="15 18 9 12 15 6"/></svg>
+          Back
+        </button>
+        <h2 class="settings-title">Add Periodical</h2>
+      </div>
+      <div class="settings-body">
+        <div class="settings-section-label">RSS FEED URL</div>
+        <div class="settings-card" style="padding: 12px 14px">
+          <input id="periodical-url" class="settings-input" type="url" placeholder="https://example.com/feed.xml" autocorrect="off" autocapitalize="off" spellcheck="false">
+        </div>
+        <div class="settings-section-label">DISPLAY NAME</div>
+        <div class="settings-card" style="padding: 12px 14px">
+          <input id="periodical-name" class="settings-input" type="text" placeholder="e.g. TechCrunch">
+        </div>
+        <button class="settings-primary-btn" id="periodical-preview-btn">Preview Feed</button>
+        <div id="periodical-preview-result" class="preview-result hidden"></div>
+        <button class="settings-primary-btn hidden" id="periodical-add-btn" style="background:#34C759">Add to Newsie</button>
+        <p id="periodical-error" class="settings-error hidden"></p>
+      </div>
+    </div>
+
+    <!-- Add Topic form -->
+    <div id="add-topic-form" class="settings-form hidden">
+      <div class="settings-header">
+        <button class="settings-back" id="topic-back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><polyline points="15 18 9 12 15 6"/></svg>
+          Back
+        </button>
+        <h2 class="settings-title">Add Topic</h2>
+      </div>
+      <div class="settings-body">
+        <div class="settings-section-label">TOPIC</div>
+        <div class="settings-card" style="padding: 12px 14px">
+          <input id="topic-name" class="settings-input" type="text" placeholder='e.g. "Formula 1" or "Climate"'>
+        </div>
+        <p class="settings-hint">Newsie will pull the latest news about this topic from Google News.</p>
+        <button class="settings-primary-btn" id="topic-add-btn">Add Topic</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/static/app.js"></script>
 </body>
 </html>

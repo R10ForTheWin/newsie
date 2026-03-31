@@ -249,6 +249,73 @@ async def get_og_image(url: str):
     return {"image": image}
 
 
+@app.get("/api/feed-preview")
+async def feed_preview(url: str, name: str = ""):
+    """Validate and preview an RSS feed URL — used when adding custom sources."""
+    entries = await fetch_feed(url)
+    if not entries:
+        return {"valid": False, "error": "No articles found. Check the URL is a valid RSS feed."}
+
+    # Try to detect feed name from entries
+    detected_name = name or "Custom Feed"
+
+    articles = []
+    seen = set()
+    for entry in entries[:5]:
+        link = entry.get("link", "")
+        if not link or link in seen:
+            continue
+        seen.add(link)
+        pub = parse_date(entry)
+        articles.append({
+            "title": entry.get("title", "").strip(),
+            "link": link,
+            "image": extract_image(entry),
+            "time_ago": time_ago(pub),
+        })
+
+    return {
+        "valid": True,
+        "name": detected_name,
+        "article_count": len(entries),
+        "sample": articles,
+    }
+
+
+@app.get("/api/custom-articles")
+async def custom_articles(url: str, name: str = "Custom", color: str = "#FF3A30", tab: str = "today"):
+    """Fetch articles from a custom RSS URL for rendering in the feed."""
+    entries = await fetch_feed(url)
+    is_gn = "news.google.com" in url
+
+    articles = []
+    seen = set()
+    for entry in entries[:MAX_PER_FEED]:
+        link = entry.get("link", "")
+        if not link or link in seen:
+            continue
+        seen.add(link)
+        pub = parse_date(entry)
+        articles.append({
+            "id": link,
+            "title": clean_title(entry.get("title", "").strip(), is_gn),
+            "link": link,
+            "summary": clean_summary(entry),
+            "image": extract_image(entry),
+            "source": name,
+            "source_id": f"custom_{url[:20]}",
+            "source_short": name[:10],
+            "category": "Custom",
+            "color": color,
+            "tab": tab,
+            "published": parse_date(entry).isoformat(),
+            "time_ago": time_ago(pub),
+        })
+
+    articles.sort(key=lambda x: x["published"], reverse=True)
+    return {"articles": articles}
+
+
 @app.get("/api/refresh")
 async def refresh_cache():
     _cache.clear()
