@@ -173,9 +173,9 @@ async def get_articles(tab: str = "today", source: Optional[str] = None):
         return _cache[cache_key]["data"]
 
     if tab == "today":
-        feeds = FEEDS
+        feeds = [f for f in FEEDS if not f.get("paywall")]
     else:
-        feeds = [f for f in FEEDS if f.get("tab") == tab]
+        feeds = [f for f in FEEDS if f.get("tab") == tab and not f.get("paywall")]
 
     if source:
         feeds = [f for f in feeds if f["id"] == source]
@@ -218,7 +218,9 @@ async def get_articles(tab: str = "today", source: Optional[str] = None):
                 "time_ago": time_ago(pub),
             })
 
-    articles.sort(key=lambda x: x["published"], reverse=True)
+    TAB_PRIORITY = {"today": 0, "entertainment": 1, "sports": 2, "magazines": 3}
+    articles.sort(key=lambda x: x["published"], reverse=True)          # 1st: newest first
+    articles.sort(key=lambda x: TAB_PRIORITY.get(x["tab"], 99))        # 2nd: priority tier (stable)
     result = {"articles": articles, "count": len(articles), "tab": tab}
     _cache[cache_key] = {"ts": now, "data": result}
     return result
