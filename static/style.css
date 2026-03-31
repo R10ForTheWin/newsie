@@ -306,12 +306,14 @@ body {
 
 .card-hero-img-wrap {
   width: 100%;
-  height: 220px;
+  aspect-ratio: 16 / 9;
   overflow: hidden;
   background: var(--bg);
+  max-height: 400px;
 }
 .card-hero-img-wrap img {
-  width: 100%; height: 100%;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   display: block;
 }
@@ -394,11 +396,13 @@ body {
 .card-row-thumb {
   width: 80px;
   height: 80px;
+  min-width: 80px;
   border-radius: 8px;
   object-fit: cover;
   flex-shrink: 0;
-  background: var(--bg);
+  background: var(--fill-1);
   display: block;
+  align-self: center;
 }
 
 /* ── 2-col grid ── */
@@ -422,11 +426,13 @@ body {
 
 .card-grid-img-wrap {
   width: 100%;
-  height: 110px;
+  aspect-ratio: 16 / 9;
   overflow: hidden;
+  background: var(--fill-1);
 }
 .card-grid-img {
-  width: 100%; height: 110px;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   display: block;
 }
@@ -871,10 +877,8 @@ body {
   .desktop-nav-btn:hover { background: var(--fill-1); color: var(--label-1); }
   .desktop-nav-btn.active { color: var(--tab-color); background: rgba(0,0,0,0.04); }
 
-  .card-hero-img-wrap { height: 320px; }
   .card-hero-title { font-size: 26px; }
-
-  .card-row-thumb { width: 90px; height: 90px; }
+  .card-row-thumb { width: 90px; height: 90px; min-width: 90px; }
 
   .feed { padding: 14px 20px; }
 }
