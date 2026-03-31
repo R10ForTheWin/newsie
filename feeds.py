@@ -102,7 +102,8 @@ FEEDS = [
         ],
         "category": "Lifestyle",
         "color": "#1A1A1A",
-        "tab": "today",
+        "tab": "magazines",
+        "is_magazine": True,
     },
     {
         "id": "waterpolo",
@@ -150,7 +151,8 @@ FEEDS = [
         ],
         "category": "News",
         "color": "#C0392B",
-        "tab": "today",
+        "tab": "magazines",
+        "is_magazine": True,
     },
     {
         "id": "wired",
@@ -161,7 +163,8 @@ FEEDS = [
         ],
         "category": "Tech",
         "color": "#000000",
-        "tab": "today",
+        "tab": "magazines",
+        "is_magazine": True,
     },
     {
         "id": "time",
@@ -172,7 +175,8 @@ FEEDS = [
         ],
         "category": "News",
         "color": "#CC0000",
-        "tab": "today",
+        "tab": "magazines",
+        "is_magazine": True,
     },
     {
         "id": "vogue",
@@ -183,7 +187,8 @@ FEEDS = [
         ],
         "category": "Lifestyle",
         "color": "#000000",
-        "tab": "today",
+        "tab": "magazines",
+        "is_magazine": True,
     },
     {
         "id": "hollywoodreporter",
@@ -205,7 +210,8 @@ FEEDS = [
         ],
         "category": "Entertainment",
         "color": "#D4232A",
-        "tab": "entertainment",
+        "tab": "magazines",
+        "is_magazine": True,
     },
     {
         "id": "espn",

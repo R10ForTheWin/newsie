@@ -10,8 +10,8 @@ const state = {
   lastFetch: null,
 };
 
-const TAB_TITLES  = { today: 'Today', sports: 'Sports', entertainment: 'Entertainment', following: 'Following' };
-const TAB_COLORS  = { today: '#FF3A30', sports: '#30D158', entertainment: '#FF375F', following: '#0A84FF' };
+const TAB_TITLES  = { today: 'Today', sports: 'Sports', entertainment: 'Entertainment', magazines: 'Magazines', following: 'Following', search: 'Search' };
+const TAB_COLORS  = { today: '#FF3A30', sports: '#30D158', entertainment: '#FF375F', magazines: '#FF9F0A', following: '#0A84FF', search: '#636366' };
 
 // ── Boot ───────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -37,8 +37,9 @@ function injectDesktopNav() {
   [
     { tab: 'today',         label: 'Today',         icon: iconNewspaper() },
     { tab: 'sports',        label: 'Sports',        icon: iconSports() },
-    { tab: 'entertainment', label: 'Entertainment', icon: iconStar() },
+    { tab: 'magazines',     label: 'Magazines',     icon: iconBook() },
     { tab: 'following',     label: 'Following',     icon: iconHeart() },
+    { tab: 'search',        label: 'Search',        icon: iconSearch() },
   ].forEach(({ tab, label, icon }) => {
     const btn = document.createElement('button');
     btn.className = 'desktop-nav-btn' + (tab === 'today' ? ' active' : '');
@@ -92,12 +93,18 @@ async function loadArticles() {
   feed.innerHTML = `<div class="loading-state"><div class="spinner"></div><p>Loading…</p></div>`;
 
   try {
-    const params = new URLSearchParams({ tab: state.currentTab });
+    // Search tab fetches everything for full-text search
+    const fetchTab = state.currentTab === 'search' ? 'today' : state.currentTab;
+    const params = new URLSearchParams({ tab: fetchTab });
     if (state.currentSource !== 'all') params.set('source', state.currentSource);
     const data = await fetch(`/api/articles?${params}`).then(r => { if (!r.ok) throw 0; return r.json(); });
     state.articles = data.articles;
     state.lastFetch = new Date();
-    state.currentTab === 'following' ? renderFollowing() : renderFeed();
+    if (data.articles.length) allArticlesCache = [...allArticlesCache, ...data.articles].filter((a, i, arr) => arr.findIndex(x => x.id === a.id) === i);
+    if      (state.currentTab === 'following')  renderFollowing();
+    else if (state.currentTab === 'magazines')  renderMagazines();
+    else if (state.currentTab === 'search')     renderSearch();
+    else                                         renderFeed();
   } catch {
     feed.innerHTML = `<div class="error-state"><p>Couldn't load articles.</p><button class="retry-btn" onclick="loadArticles()">Try Again</button></div>`;
   } finally {
@@ -301,6 +308,182 @@ function buildHorizCard(article) {
   return el;
 }
 
+// ── Magazines Render ───────────────────────────────────────────────────────
+function renderMagazines() {
+  const feed = document.getElementById('feed');
+  const articles = applyPrefs(state.articles);
+
+  if (!articles.length) { feed.innerHTML = '<div class="empty-state"><p>No magazines.</p></div>'; return; }
+
+  // Group by source, take latest article as the "cover"
+  const bySource = {};
+  const order = [];
+  articles.forEach(a => {
+    if (!bySource[a.source_id]) { bySource[a.source_id] = []; order.push(a.source_id); }
+    bySource[a.source_id].push(a);
+  });
+
+  const grid = document.createElement('div');
+  grid.className = 'magazine-grid';
+
+  order.forEach(id => {
+    const items = bySource[id];
+    const cover = items[0]; // latest = cover story
+    const isNew = (Date.now() - new Date(cover.published)) < 86_400_000; // < 24h
+
+    const card = document.createElement('div');
+    card.className = 'card-magazine';
+    card.addEventListener('click', () => {
+      // Switch to Today tab filtered by this source
+      state.currentTab = 'today';
+      state.currentSource = cover.source_id;
+      document.documentElement.style.setProperty('--tab-color', TAB_COLORS.today);
+      document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'today'));
+      document.querySelectorAll('.desktop-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'today'));
+      document.getElementById('header-title').textContent = cover.source;
+      renderSourceChips();
+      loadArticles();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    const coverWrap = document.createElement('div');
+    coverWrap.className = 'mag-cover-wrap';
+
+    if (cover.image) {
+      coverWrap.innerHTML = `
+        <img class="mag-cover-img" src="${esc(cover.image)}" alt="${esc(cover.source)}" loading="lazy" onerror="this.parentElement.innerHTML=placeholderCover('${esc(cover.source)}','${esc(cover.color)}')">
+        <div class="mag-cover-gradient"></div>
+        <div class="mag-cover-name">${esc(cover.source)}</div>
+        ${isNew ? '<div class="mag-new-badge">New</div>' : ''}`;
+    } else {
+      coverWrap.innerHTML = `
+        <div class="mag-cover-placeholder" style="background:${esc(cover.color)}18">
+          <div class="mag-cover-placeholder-name" style="color:${esc(cover.color)}">${esc(cover.source)}</div>
+        </div>
+        ${isNew ? '<div class="mag-new-badge">New</div>' : ''}`;
+    }
+
+    card.innerHTML = `
+      <div class="mag-body">
+        <p class="mag-latest">${esc(cover.title)}</p>
+        <span class="mag-time">${esc(cover.time_ago)}</span>
+      </div>`;
+    card.insertBefore(coverWrap, card.firstChild);
+    grid.appendChild(card);
+  });
+
+  feed.innerHTML = '';
+  feed.appendChild(grid);
+}
+
+function placeholderCover(name, color) {
+  return `<div class="mag-cover-placeholder" style="background:${color}18"><div class="mag-cover-placeholder-name" style="color:${color}">${name}</div></div>`;
+}
+
+// ── Search Render ──────────────────────────────────────────────────────────
+let searchDebounce = null;
+let allArticlesCache = [];
+
+function renderSearch() {
+  const feed = document.getElementById('feed');
+
+  const container = document.createElement('div');
+  container.className = 'search-container';
+
+  // Search bar
+  const barWrap = document.createElement('div');
+  barWrap.className = 'search-bar-wrap';
+  barWrap.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    <input type="search" class="search-input" id="search-input" placeholder="Search Newsie" autocomplete="off" autocorrect="off" spellcheck="false">
+    <button class="search-clear hidden" id="search-clear" aria-label="Clear">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>`;
+  container.appendChild(barWrap);
+
+  const resultsArea = document.createElement('div');
+  resultsArea.id = 'search-results-area';
+  resultsArea.innerHTML = `
+    <div class="search-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <h3>Search Newsie</h3>
+      <p>Find articles from all your sources</p>
+    </div>`;
+  container.appendChild(resultsArea);
+
+  feed.innerHTML = '';
+  feed.appendChild(container);
+
+  // Cache all articles for searching
+  allArticlesCache = state.articles.length ? state.articles : allArticlesCache;
+
+  const input = document.getElementById('search-input');
+  const clearBtn = document.getElementById('search-clear');
+
+  // Auto-focus on desktop
+  if (window.innerWidth >= 768) setTimeout(() => input.focus(), 100);
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    clearBtn.classList.toggle('hidden', !q);
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => doSearch(q), 180);
+  });
+
+  clearBtn.addEventListener('click', () => {
+    input.value = '';
+    clearBtn.classList.add('hidden');
+    resultsArea.innerHTML = `<div class="search-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <h3>Search Newsie</h3><p>Find articles from all your sources</p></div>`;
+    input.focus();
+  });
+}
+
+function doSearch(query) {
+  const area = document.getElementById('search-results-area');
+  if (!area) return;
+
+  if (!query) {
+    area.innerHTML = `<div class="search-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <h3>Search Newsie</h3><p>Find articles from all your sources</p></div>`;
+    return;
+  }
+
+  const q = query.toLowerCase();
+  const results = allArticlesCache.filter(a =>
+    a.title.toLowerCase().includes(q) ||
+    a.source.toLowerCase().includes(q) ||
+    (a.summary || '').toLowerCase().includes(q)
+  );
+
+  if (!results.length) {
+    area.innerHTML = `<div class="search-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <h3>No Results</h3><p>No articles found for "<strong>${esc(query)}</strong>"</p></div>`;
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  const count = document.createElement('p');
+  count.className = 'search-results-count';
+  count.textContent = `${results.length} result${results.length === 1 ? '' : 's'}`;
+  frag.appendChild(count);
+
+  const section = document.createElement('div');
+  section.className = 'search-result-section';
+  results.slice(0, 50).forEach(a => section.appendChild(buildRowCard(a)));
+  frag.appendChild(section);
+
+  area.innerHTML = '';
+  area.appendChild(frag);
+}
+
 // ─────────────────────────────────────────────────────────
 // PREFERENCES & FEEDBACK
 // ─────────────────────────────────────────────────────────
@@ -457,3 +640,5 @@ function iconNewspaper() { return `<svg ${svgAttr}><rect x="3" y="4" width="18" 
 function iconSports()    { return `<svg ${svgAttr}><circle cx="12" cy="12" r="9"/><path d="M12 3s-3 4-3 9 3 9 3 9"/><path d="M12 3s3 4 3 9-3 9-3 9"/><line x1="3" y1="12" x2="21" y2="12"/></svg>`; }
 function iconStar()      { return `<svg ${svgAttr}><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>`; }
 function iconHeart()     { return `<svg ${svgAttr}><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`; }
+function iconBook()      { return `<svg ${svgAttr}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`; }
+function iconSearch()    { return `<svg ${svgAttr}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`; }

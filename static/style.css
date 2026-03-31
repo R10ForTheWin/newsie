@@ -14,11 +14,13 @@
   --fill-2:          rgba(120,120,128,0.16);
 
   /* Apple News tab accent colors */
-  --tab-color:       #FF3A30;
-  --tab-today:       #FF3A30;
-  --tab-sports:      #30D158;
+  --tab-color:        #FF3A30;
+  --tab-today:        #FF3A30;
+  --tab-sports:       #30D158;
   --tab-entertainment:#FF375F;
-  --tab-following:   #0A84FF;
+  --tab-magazines:    #FF9F0A;
+  --tab-following:    #0A84FF;
+  --tab-search:       #636366;
 
   /* Layout */
   --tab-bar-h:       49px;
@@ -574,6 +576,191 @@ body {
   gap: 0;
   margin-left: auto;
   flex-shrink: 0;
+}
+
+/* ─────────────────────────────────────────────────────────
+   MAGAZINES TAB  — Apple News+ style cover grid
+───────────────────────────────────────────────────────── */
+.magazine-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  padding: 14px 16px;
+}
+
+.card-magazine {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease, opacity 0.12s;
+}
+.card-magazine:active { transform: scale(0.96); opacity: 0.85; }
+
+.mag-cover-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--fill-1);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.12);
+}
+
+.mag-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.mag-cover-gradient {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 55%;
+  background: linear-gradient(to top, rgba(0,0,0,0.72) 0%, transparent 100%);
+}
+
+.mag-cover-name {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  right: 10px;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.3px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  line-height: 1.15;
+}
+
+.mag-new-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--tab-color);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+
+.mag-body {
+  padding: 8px 2px 0;
+}
+
+.mag-latest {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--label-1);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.mag-time {
+  font-size: 11px;
+  color: var(--label-2);
+  margin-top: 3px;
+  display: block;
+}
+
+/* Placeholder cover when no image */
+.mag-cover-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+}
+.mag-cover-placeholder-name {
+  font-size: 18px;
+  font-weight: 800;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+/* ─────────────────────────────────────────────────────────
+   SEARCH TAB
+───────────────────────────────────────────────────────── */
+.search-container {
+  padding: 12px 16px 0;
+}
+
+.search-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--fill-1);
+  border-radius: 12px;
+  padding: 9px 12px;
+  margin-bottom: 14px;
+}
+.search-bar-wrap svg { width: 16px; height: 16px; color: var(--label-2); flex-shrink: 0; }
+
+.search-input {
+  flex: 1;
+  border: none;
+  background: none;
+  font-family: var(--font);
+  font-size: 16px;
+  color: var(--label-1);
+  outline: none;
+  min-width: 0;
+}
+.search-input::placeholder { color: var(--label-2); }
+.search-input::-webkit-search-cancel-button { display: none; }
+
+.search-clear {
+  background: var(--label-3);
+  border: none;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.search-clear svg { width: 10px; height: 10px; }
+.search-clear.hidden { display: none; }
+
+.search-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 24px;
+  color: var(--label-2);
+  text-align: center;
+  gap: 8px;
+}
+.search-empty svg { width: 48px; height: 48px; color: var(--label-3); }
+.search-empty h3 { font-size: 20px; font-weight: 600; color: var(--label-1); }
+.search-empty p  { font-size: 15px; }
+
+.search-results-count {
+  font-size: 13px;
+  color: var(--label-2);
+  padding: 0 2px 8px;
+  font-weight: 500;
+}
+
+.search-results { display: flex; flex-direction: column; gap: 0; }
+.search-result-section {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 10px;
 }
 
 /* ─────────────────────────────────────────────────────────
