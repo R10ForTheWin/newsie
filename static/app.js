@@ -112,7 +112,10 @@ async function loadArticles() {
       const customArticles = customResults.flatMap(r => r.articles || []);
       const seenIds = new Set(articles.map(a => a.id));
       articles = [...articles, ...customArticles.filter(a => !seenIds.has(a.id))];
-      articles.sort((a, b) => new Date(b.published) - new Date(a.published));
+      articles.sort((a, b) => {
+        if ((a.priority ?? 99) !== (b.priority ?? 99)) return (a.priority ?? 99) - (b.priority ?? 99);
+        return new Date(b.published) - new Date(a.published);
+      });
     }
 
     state.articles = articles;
@@ -159,7 +162,10 @@ function renderFeed() {
   }
 
   // Remaining: grouped into Apple News-style sections by source
-  const remaining = [...withImg, ...withoutImg].sort((a, b) => new Date(b.published) - new Date(a.published));
+  const remaining = [...withImg, ...withoutImg].sort((a, b) => {
+    if ((a.priority ?? 99) !== (b.priority ?? 99)) return (a.priority ?? 99) - (b.priority ?? 99);
+    return new Date(b.published) - new Date(a.published);
+  });
 
   // Group into runs of same source (max 4 per group) for Apple News style
   const groups = [];
@@ -585,6 +591,7 @@ function applyPrefs(articles) {
     .filter(a => !hiddenSet.has(a.id))
     .map(a => ({ ...a, _liked: likedSet.has(a.id), _w: weights[a.source_id] ?? 1 }))
     .sort((a, b) => {
+      if ((a.priority ?? 99) !== (b.priority ?? 99)) return (a.priority ?? 99) - (b.priority ?? 99);
       const hoursOld = iso => (Date.now() - new Date(iso)) / 3_600_000;
       return (1 / (hoursOld(b.published) + 1)) * b._w - (1 / (hoursOld(a.published) + 1)) * a._w;
     });
