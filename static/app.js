@@ -1080,6 +1080,7 @@ function splicePinnedIntoFeed(articles) {
     const positions = [Math.floor(total * 0.2), Math.floor(total * 0.5), Math.floor(total * 0.8)];
     positions.forEach((pos, i) => {
       const item = shuffled[i % shuffled.length];
+      const neighbor = articles[pos];
       pinned.push({ at: pos, article: {
         id: 'onion-' + i + '-' + item.link,
         title: item.title,
@@ -1090,8 +1091,8 @@ function splicePinnedIntoFeed(articles) {
         source_short: 'The Onion',
         color: '#3a7d3a',
         tab: 'today',
-        priority: 0,
-        published: new Date().toISOString(),
+        priority: neighbor ? (neighbor.priority ?? 99) : 99,
+        published: neighbor ? neighbor.published : new Date().toISOString(),
         time_ago: 'satire',
       }});
     });
