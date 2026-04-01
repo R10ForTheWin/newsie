@@ -1095,26 +1095,23 @@ function splicePinnedIntoFeed(articles) {
     });
   }
 
-  // A few Bubble posts spread through the feed
+  // One Bubble post near the top
   if (_bubblePosts.length) {
-    [4, 14, 24].forEach((pos, i) => {
-      const post = _bubblePosts[i % _bubblePosts.length];
-      if (!post) return;
-      pinned.push({ at: pos, article: {
-        id: 'bubble-' + pos,
-        title: post.caption || 'Check out @the.bubble',
-        link: 'https://www.instagram.com/the.bubble/',
-        image: post.image || null,
-        source: '@the.bubble',
-        source_id: 'bubble',
-        source_short: 'The Bubble',
-        color: '#833ab4',
-        tab: 'today',
-        priority: 0,
-        published: new Date().toISOString(),
-        time_ago: 'instagram',
-      }});
-    });
+    const post = _bubblePosts[Math.floor(Math.random() * _bubblePosts.length)];
+    pinned.push({ at: 3, article: {
+      id: 'bubble-top',
+      title: post.caption || 'Check out @the.bubble',
+      link: 'https://www.instagram.com/the.bubble/',
+      image: post.image || null,
+      source: '@the.bubble',
+      source_id: 'bubble',
+      source_short: 'The Bubble',
+      color: '#833ab4',
+      tab: 'today',
+      priority: 0,
+      published: new Date().toISOString(),
+      time_ago: 'instagram',
+    }});
   }
 
   if (!pinned.length) return articles;
