@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupPullToRefresh();
   setupSettings();
   loadSources().then(() => loadArticles());
+  initTicker();
 });
 
 // ── Header ─────────────────────────────────────────────────────────────────
@@ -1000,4 +1001,50 @@ function iconSports()    { return `<svg ${svgAttr}><circle cx="12" cy="12" r="9"
 function iconStar()      { return `<svg ${svgAttr}><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>`; }
 function iconHeart()     { return `<svg ${svgAttr}><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`; }
 function iconBook()      { return `<svg ${svgAttr}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`; }
+
+// ── Market Ticker ──────────────────────────────────────────────────────────
+function initTicker() {
+  fetchAndRenderTicker();
+  setInterval(fetchAndRenderTicker, 5 * 60 * 1000); // refresh every 5 min
+}
+
+async function fetchAndRenderTicker() {
+  try {
+    const data = await fetch('/api/markets').then(r => r.json());
+    if (!data || !data.length) return;
+    renderTicker(data);
+  } catch (_) {}
+}
+
+function renderTicker(items) {
+  const bar = document.getElementById('ticker-bar');
+  const track = document.getElementById('ticker-track');
+  if (!bar || !track) return;
+
+  function makeItems() {
+    return items.map(item => {
+      const up = item.pct >= 0;
+      const arrow = up ? '▲' : '▼';
+      const cls = up ? 'ticker-up' : 'ticker-down';
+      const price = formatTickerPrice(item.label, item.price);
+      const pct = Math.abs(item.pct).toFixed(2) + '%';
+      return `<span class="ticker-item">
+        <span class="ticker-label">${item.label}</span>
+        <span class="ticker-price">${price}</span>
+        <span class="ticker-change ${cls}">${arrow} ${pct}</span>
+      </span>`;
+    }).join('');
+  }
+
+  // Duplicate for seamless loop
+  track.innerHTML = makeItems() + makeItems();
+  bar.classList.remove('hidden');
+}
+
+function formatTickerPrice(label, price) {
+  if (label === 'Bitcoin') return '$' + price.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  if (label === 'Gold')    return '$' + price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (label === 'Rivian')  return '$' + price.toFixed(2);
+  return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 function iconSearch()    { return `<svg ${svgAttr}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`; }

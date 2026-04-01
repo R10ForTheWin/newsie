@@ -136,6 +136,49 @@ body {
 .icon-btn:active { opacity: 0.4; }
 .icon-btn.spinning svg { animation: spin 0.65s linear infinite; }
 
+/* ── Market ticker ── */
+.ticker-bar {
+  overflow: hidden;
+  background: #1c1c1e;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  margin: 0 -0px;
+}
+.ticker-bar.hidden { display: none; }
+
+.ticker-track {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  white-space: nowrap;
+  will-change: transform;
+  animation: ticker-scroll 50s linear infinite;
+}
+.ticker-track:hover { animation-play-state: paused; }
+
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 18px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: 0.1px;
+  border-right: 1px solid rgba(255,255,255,0.1);
+}
+.ticker-label  { color: rgba(255,255,255,0.5); font-weight: 500; }
+.ticker-price  { color: #fff; }
+.ticker-change { font-size: 10px; }
+.ticker-up     { color: #30d158; }
+.ticker-down   { color: #ff453a; }
+
 /* ── Source chips ── */
 .source-filter {
   overflow: hidden;

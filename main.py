@@ -1,6 +1,7 @@
 import asyncio
 import re
 import time
+import urllib.parse
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -224,6 +225,54 @@ async def get_articles(tab: str = "today", source: Optional[str] = None):
     result = {"articles": articles, "count": len(articles), "tab": tab}
     _cache[cache_key] = {"ts": now, "data": result}
     return result
+
+
+MARKET_SYMBOLS = [
+    {"symbol": "^GSPC",   "label": "S&P 500"},
+    {"symbol": "^DJI",    "label": "Dow Jones"},
+    {"symbol": "BTC-USD", "label": "Bitcoin"},
+    {"symbol": "GC=F",    "label": "Gold"},
+    {"symbol": "RIVN",    "label": "Rivian"},
+]
+
+@app.get("/api/markets")
+async def get_markets():
+    cache_key = "markets"
+    now = time.time()
+    if cache_key in _cache and now - _cache[cache_key]["ts"] < 300:  # 5-min cache
+        return _cache[cache_key]["data"]
+
+    symbols = ",".join(urllib.parse.quote(s["symbol"]) for s in MARKET_SYMBOLS)
+    url = (
+        f"https://query1.finance.yahoo.com/v7/finance/quote"
+        f"?symbols={symbols}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent"
+    )
+    try:
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+            r = await client.get(url, headers={
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "application/json",
+            })
+            quotes = r.json().get("quoteResponse", {}).get("result", [])
+        quote_map = {q["symbol"]: q for q in quotes}
+        result = []
+        for item in MARKET_SYMBOLS:
+            q = quote_map.get(item["symbol"], {})
+            price = q.get("regularMarketPrice")
+            change = q.get("regularMarketChange")
+            pct = q.get("regularMarketChangePercent")
+            if price is None:
+                continue
+            result.append({
+                "label": item["label"],
+                "price": price,
+                "change": round(change, 2) if change is not None else 0,
+                "pct": round(pct, 2) if pct is not None else 0,
+            })
+        _cache[cache_key] = {"ts": now, "data": result}
+        return result
+    except Exception:
+        return []
 
 
 @app.get("/api/sources")
