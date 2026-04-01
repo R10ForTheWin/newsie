@@ -1073,21 +1073,20 @@ async function initOnion() {
 function splicePinnedIntoFeed(articles) {
   const pinned = [];
 
-  // Onion articles every 8 real articles throughout the whole feed
+  // Exactly 3 Onion articles, evenly distributed, each with a unique source_id so they don't group
   if (_onionHeadlines.length) {
     const shuffled = [..._onionHeadlines].sort(() => Math.random() - 0.5);
     const total = articles.length;
-    let onionI = 0;
-    for (let pos = 7; pos < total; pos += 8) {
-      const item = shuffled[onionI % shuffled.length];
-      onionI++;
+    const positions = [Math.floor(total * 0.2), Math.floor(total * 0.5), Math.floor(total * 0.8)];
+    positions.forEach((pos, i) => {
+      const item = shuffled[i % shuffled.length];
       pinned.push({ at: pos, article: {
-        id: 'onion-' + onionI + '-' + item.link,
+        id: 'onion-' + i + '-' + item.link,
         title: item.title,
         link: item.link,
         image: item.image || null,
         source: 'The Onion',
-        source_id: 'theonion',
+        source_id: 'theonion-' + i,
         source_short: 'The Onion',
         color: '#3a7d3a',
         tab: 'today',
@@ -1095,7 +1094,7 @@ function splicePinnedIntoFeed(articles) {
         published: new Date().toISOString(),
         time_ago: 'satire',
       }});
-    }
+    });
   }
 
   // One Bubble post near the top
