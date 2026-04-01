@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupSettings();
   loadSources().then(() => loadArticles());
   initTicker();
+  initWeather();
   initOnion();
   initBubble().then(() => { if (state.articles.length) renderFeed(); });
 });
@@ -30,7 +31,15 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── Header ─────────────────────────────────────────────────────────────────
 function setHeaderDate() {
   const el = document.getElementById('header-date');
-  if (el) el.textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  if (el) el.innerHTML = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) + '<span id="weather-inline"></span>';
+}
+
+async function initWeather() {
+  try {
+    const data = await fetch('/api/weather').then(r => r.json());
+    const el = document.getElementById('weather-inline');
+    if (el && data.temp && data.emoji) el.textContent = ` · ${data.emoji} ${data.temp}°`;
+  } catch {}
 }
 
 // ── Desktop nav ────────────────────────────────────────────────────────────
@@ -164,9 +173,23 @@ function renderFeed() {
     withImg.unshift(...gridItems);
   }
 
-  // Remaining: grouped into Apple News-style sections by source
-  const remaining = [...withImg, ...withoutImg].sort((a, b) => {
+  // Remaining: grouped into Apple News-style sections by source.
+  // Sort by recency first to get source freshness order, then cluster by source.
+  const _byRecency = [...withImg, ...withoutImg].sort((a, b) => {
     if ((a.priority ?? 99) !== (b.priority ?? 99)) return (a.priority ?? 99) - (b.priority ?? 99);
+    return new Date(b.published) - new Date(a.published);
+  });
+  const _srcOrder = new Map();
+  _byRecency.forEach((a, i) => {
+    const k = `${a.priority ?? 99}:${a.source_id}`;
+    if (!_srcOrder.has(k)) _srcOrder.set(k, i);
+  });
+  const remaining = _byRecency.sort((a, b) => {
+    const pa = a.priority ?? 99, pb = b.priority ?? 99;
+    if (pa !== pb) return pa - pb;
+    const oa = _srcOrder.get(`${pa}:${a.source_id}`);
+    const ob = _srcOrder.get(`${pb}:${b.source_id}`);
+    if (oa !== ob) return oa - ob;
     return new Date(b.published) - new Date(a.published);
   });
 

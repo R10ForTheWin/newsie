@@ -229,38 +229,45 @@ async def get_articles(tab: str = "today", source: Optional[str] = None):
     return result
 
 
-MARKET_SYMBOLS = [
-    {"symbol": "^GSPC",   "label": "S&P 500"},
-    {"symbol": "^DJI",    "label": "Dow Jones"},
-    {"symbol": "BTC-USD", "label": "Bitcoin"},
-    {"symbol": "GC=F",    "label": "Gold"},
-    {"symbol": "RIVN",    "label": "Rivian"},
+STOOQ_SYMBOLS = [
+    {"stooq": "^spx",    "label": "S&P 500"},
+    {"stooq": "^dji",    "label": "Dow Jones"},
+    {"stooq": "gc.f",    "label": "Gold"},
+    {"stooq": "rivn.us", "label": "Rivian"},
 ]
 
-YF_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Accept": "application/json, text/plain, */*",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Referer": "https://finance.yahoo.com/",
-    "Origin": "https://finance.yahoo.com",
-}
+_STOOQ_HEADERS = {"User-Agent": "Mozilla/5.0"}
 
-async def _fetch_yf_chart(client: httpx.AsyncClient, item: dict) -> dict | None:
-    sym = urllib.parse.quote(item["symbol"])
-    url = f"https://query2.finance.yahoo.com/v8/finance/chart/{sym}?interval=1d&range=2d"
+async def _fetch_stooq(client: httpx.AsyncClient, item: dict) -> dict | None:
+    url = f"https://stooq.com/q/l/?s={item['stooq']}&f=sd2t2ohlcv&h&e=csv"
     try:
-        r = await client.get(url, headers=YF_HEADERS)
-        meta = r.json()["chart"]["result"][0]["meta"]
-        price = meta["regularMarketPrice"]
-        prev  = meta.get("chartPreviousClose") or meta.get("previousClose") or price
-        change = price - prev
-        pct    = (change / prev * 100) if prev else 0
-        return {
-            "label":  item["label"],
-            "price":  price,
-            "change": round(change, 2),
-            "pct":    round(pct, 2),
-        }
+        r = await client.get(url, headers=_STOOQ_HEADERS, timeout=8)
+        lines = [l.strip() for l in r.text.strip().splitlines()
+                 if l.strip() and not l.startswith("Symbol")]
+        if not lines:
+            return None
+        parts = lines[-1].split(",")
+        if len(parts) < 7:
+            return None
+        o, c = float(parts[3]), float(parts[6])
+        change = c - o
+        pct = (change / o * 100) if o else 0
+        return {"label": item["label"], "price": c, "change": round(change, 2), "pct": round(pct, 2)}
+    except Exception:
+        return None
+
+async def _fetch_bitcoin() -> dict | None:
+    try:
+        async with httpx.AsyncClient(timeout=8) as c:
+            r = await c.get(
+                "https://api.coingecko.com/api/v3/simple/price"
+                "?ids=bitcoin&vs_currencies=usd&include_24hr_change=true",
+                headers=_STOOQ_HEADERS,
+            )
+            data = r.json()["bitcoin"]
+            price = data["usd"]
+            pct = data.get("usd_24h_change", 0)
+            return {"label": "Bitcoin", "price": price, "change": round(price * pct / 100, 2), "pct": round(pct, 2)}
     except Exception:
         return None
 
@@ -272,12 +279,48 @@ async def get_markets():
         return _cache[cache_key]["data"]
 
     async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
-        results = await asyncio.gather(*[_fetch_yf_chart(client, s) for s in MARKET_SYMBOLS])
+        stooq_results = await asyncio.gather(*[_fetch_stooq(client, s) for s in STOOQ_SYMBOLS])
 
-    result = [r for r in results if r is not None]
+    result = [r for r in stooq_results if r is not None]
+    btc = await _fetch_bitcoin()
+    if btc:
+        result.insert(2, btc)  # after S&P 500 and Dow Jones
+
     if result:
         _cache[cache_key] = {"ts": now, "data": result}
     return result
+
+
+def _weather_emoji(code: int) -> str:
+    if code == 113: return "☀️"
+    if code == 116: return "🌤"
+    if code in (119, 122): return "☁️"
+    if code in (143, 248, 260): return "🌫"
+    if 176 <= code <= 314: return "🌧"
+    if 315 <= code <= 395: return "❄️"
+    return "🌡"
+
+@app.get("/api/weather")
+async def get_weather():
+    cache_key = "weather"
+    now = time.time()
+    if cache_key in _cache and now - _cache[cache_key]["ts"] < 1800:
+        return _cache[cache_key]["data"]
+    try:
+        async with httpx.AsyncClient(timeout=8, follow_redirects=True) as client:
+            r = await client.get(
+                "https://wttr.in/90266?format=j1",
+                headers={"User-Agent": "Mozilla/5.0", "Accept": "application/json"},
+            )
+            cond = r.json()["current_condition"][0]
+            result = {
+                "temp": cond["temp_F"],
+                "emoji": _weather_emoji(int(cond["weatherCode"])),
+            }
+            _cache[cache_key] = {"ts": now, "data": result}
+            return result
+    except Exception:
+        return {}
 
 
 @app.get("/api/bubble")
