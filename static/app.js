@@ -38,7 +38,11 @@ async function initWeather() {
   try {
     const data = await fetch('/api/weather').then(r => r.json());
     const el = document.getElementById('weather-inline');
-    if (el && data.temp && data.emoji) el.textContent = ` · ${data.emoji} ${data.temp}°`;
+    if (el && data.temp && data.emoji) {
+      let txt = ` · ${data.emoji} ${data.temp}°`;
+      if (data.ocean) txt += ` 🌊 ${data.ocean}°`;
+      el.textContent = txt;
+    }
   } catch {}
 }
 

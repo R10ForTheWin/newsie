@@ -300,6 +300,26 @@ def _weather_emoji(code: int) -> str:
     if 315 <= code <= 395: return "❄️"
     return "🌡"
 
+async def _fetch_ocean_temp() -> str | None:
+    """Fetch water temp (°F) from NOAA buoy 46025 (Santa Monica Bay)."""
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+            r = await client.get(
+                "https://www.ndbc.noaa.gov/data/realtime2/46025.txt",
+                headers={"User-Agent": "Mozilla/5.0"},
+            )
+        lines = [l for l in r.text.splitlines() if not l.startswith("#") and l.strip()]
+        if not lines:
+            return None
+        parts = lines[0].split()
+        wtmp_c = parts[14] if len(parts) > 14 else "MM"
+        if wtmp_c == "MM":
+            return None
+        wtmp_f = round(float(wtmp_c) * 9 / 5 + 32)
+        return str(wtmp_f)
+    except Exception:
+        return None
+
 @app.get("/api/weather")
 async def get_weather():
     cache_key = "weather"
@@ -317,8 +337,11 @@ async def get_weather():
                 "temp": cond["temp_F"],
                 "emoji": _weather_emoji(int(cond["weatherCode"])),
             }
-            _cache[cache_key] = {"ts": now, "data": result}
-            return result
+        ocean = await _fetch_ocean_temp()
+        if ocean:
+            result["ocean"] = ocean
+        _cache[cache_key] = {"ts": now, "data": result}
+        return result
     except Exception:
         return {}
 
