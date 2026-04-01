@@ -187,6 +187,55 @@ body {
 }
 .onion-headline.fade { opacity: 0; }
 
+/* ── Bubble card ── */
+.bubble-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin: 8px 16px 0;
+  cursor: pointer;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s;
+}
+.bubble-card:active { opacity: 0.8; }
+.bubble-ig-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.15);
+  border-radius: 10px;
+}
+.bubble-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+.bubble-badge {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.7);
+}
+.bubble-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+}
+.bubble-sub {
+  font-size: 11px;
+  color: rgba(255,255,255,0.7);
+}
+.bubble-chevron { flex-shrink: 0; }
+
 /* ── Market ticker ── */
 .ticker-bar {
   overflow: hidden;

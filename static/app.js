@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadSources().then(() => loadArticles());
   initTicker();
   initOnion();
+  injectBubbleCard();
 });
 
 // ── Header ─────────────────────────────────────────────────────────────────
@@ -147,8 +148,8 @@ function renderFeed() {
 
   // Hero: first article with large image
   frag.appendChild(buildHeroCard(articles[0]));
-  // Onion card re-injected after render
-  setTimeout(injectOnionCard, 0);
+  // Pinned cards re-injected after render
+  setTimeout(() => { injectOnionCard(); injectBubbleCard(); }, 0);
 
   // 2-col grid: next articles that have images
   const withImg  = articles.slice(1).filter(a => a.image);
@@ -1115,4 +1116,35 @@ function rotateOnion() {
     headline.classList.remove('fade');
     if (img && item.image) { img.src = item.image; img.classList.remove('fade'); }
   }, 300);
+}
+
+// ── The Bubble (Instagram pinned card) ────────────────────────────────────
+function injectBubbleCard() {
+  document.getElementById('bubble-card')?.remove();
+  const feed = document.getElementById('feed');
+  if (!feed) return;
+  const card = document.createElement('a');
+  card.id = 'bubble-card';
+  card.className = 'bubble-card';
+  card.href = 'https://www.instagram.com/the.bubble/';
+  card.target = '_blank';
+  card.rel = 'noopener noreferrer';
+  card.innerHTML = `
+    <div class="bubble-ig-icon">
+      <svg viewBox="0 0 24 24" fill="none" width="22" height="22">
+        <rect x="2" y="2" width="20" height="20" rx="5" ry="5" stroke="white" stroke-width="1.8"/>
+        <circle cx="12" cy="12" r="5" stroke="white" stroke-width="1.8"/>
+        <circle cx="17.5" cy="6.5" r="1.2" fill="white"/>
+      </svg>
+    </div>
+    <div class="bubble-body">
+      <span class="bubble-badge">Instagram</span>
+      <span class="bubble-name">@the.bubble</span>
+      <span class="bubble-sub">Tap to view latest posts</span>
+    </div>
+    <svg class="bubble-chevron" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2" stroke-linecap="round" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>`;
+  // insert after onion card if present, else at top
+  const onion = document.getElementById('onion-card');
+  if (onion?.nextSibling) feed.insertBefore(card, onion.nextSibling);
+  else feed.insertBefore(card, feed.firstChild);
 }
