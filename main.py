@@ -13,9 +13,11 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+import os
 app = FastAPI(title="Newsie")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+STATIC_VERSION = os.environ.get("RAILWAY_GIT_COMMIT_SHA", str(int(time.time())))[:8]
 
 _cache: dict = {}
 CACHE_TTL = 900  # 15 minutes
@@ -375,4 +377,4 @@ async def refresh_cache():
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse("index.html", {"request": request, "v": STATIC_VERSION})
