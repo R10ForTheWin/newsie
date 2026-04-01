@@ -413,6 +413,7 @@ FEEDS = [
         "color": "#FF6600",
         "tab": "today",
         "priority": 2,
+        "paywall": True,
     },
     {
         "id": "thedrive",
