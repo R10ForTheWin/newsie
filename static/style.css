@@ -317,6 +317,13 @@ body {
   font-weight: 700;
   letter-spacing: -0.2px;
 }
+.section-category-name {
+  color: var(--label-1);
+  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+}
 .section-see-all {
   font-size: 14px;
   color: #0A84FF;

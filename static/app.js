@@ -177,47 +177,34 @@ function renderFeed() {
     withImg.unshift(...gridItems);
   }
 
-  // Remaining: grouped into Apple News-style sections by source.
-  // Sort by recency first to get source freshness order, then cluster by source.
-  const _byRecency = [...withImg, ...withoutImg].sort((a, b) => {
-    if ((a.priority ?? 99) !== (b.priority ?? 99)) return (a.priority ?? 99) - (b.priority ?? 99);
-    return new Date(b.published) - new Date(a.published);
-  });
-  const _srcOrder = new Map();
-  _byRecency.forEach((a, i) => {
-    const k = `${a.priority ?? 99}:${a.source_id}`;
-    if (!_srcOrder.has(k)) _srcOrder.set(k, i);
-  });
-  const remaining = _byRecency.sort((a, b) => {
-    const pa = a.priority ?? 99, pb = b.priority ?? 99;
-    if (pa !== pb) return pa - pb;
-    const oa = _srcOrder.get(`${pa}:${a.source_id}`);
-    const ob = _srcOrder.get(`${pb}:${b.source_id}`);
-    if (oa !== ob) return oa - ob;
-    return new Date(b.published) - new Date(a.published);
-  });
+  // Group by category, ordered by category priority then article recency
+  const CAT_ORDER = ['News', 'Business', 'Tech', 'Entertainment', 'Sports', 'Lifestyle', 'Automotive', 'Memes'];
+  const byCategory = new Map();
+  [...withImg, ...withoutImg]
+    .sort((a, b) => {
+      const ca = CAT_ORDER.indexOf(a.category || 'News');
+      const cb = CAT_ORDER.indexOf(b.category || 'News');
+      const oa = ca === -1 ? 99 : ca, ob = cb === -1 ? 99 : cb;
+      if (oa !== ob) return oa - ob;
+      if ((a.priority ?? 99) !== (b.priority ?? 99)) return (a.priority ?? 99) - (b.priority ?? 99);
+      return new Date(b.published) - new Date(a.published);
+    })
+    .forEach(a => {
+      const cat = a.category || 'News';
+      if (!byCategory.has(cat)) byCategory.set(cat, []);
+      byCategory.get(cat).push(a);
+    });
 
-  // Group into runs of same source (max 4 per group) for Apple News style
-  const groups = [];
-  remaining.forEach(a => {
-    const last = groups[groups.length - 1];
-    if (last && last[0].source_id === a.source_id && last.length < 4) {
-      last.push(a);
-    } else {
-      groups.push([a]);
-    }
-  });
-
-  groups.forEach(group => {
+  byCategory.forEach((catArticles, cat) => {
     const section = document.createElement('div');
     section.className = 'news-section';
     if (state.currentSource === 'all') {
       const hdr = document.createElement('div');
       hdr.className = 'section-from-header';
-      hdr.innerHTML = `<span class="section-from-name" style="color:${esc(group[0].color)}">${esc(group[0].source)}</span>`;
+      hdr.innerHTML = `<span class="section-from-name section-category-name">${esc(cat)}</span>`;
       section.appendChild(hdr);
     }
-    group.forEach(a => section.appendChild(buildRowCard(a)));
+    catArticles.forEach(a => section.appendChild(buildRowCard(a)));
     frag.appendChild(section);
   });
 
