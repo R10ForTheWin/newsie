@@ -280,6 +280,55 @@ async def get_markets():
     return result
 
 
+@app.get("/api/bubble")
+async def get_bubble():
+    cache_key = "bubble"
+    now = time.time()
+    if cache_key in _cache and now - _cache[cache_key]["ts"] < 1800:
+        return _cache[cache_key]["data"]
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+    }
+
+    async def _try_imginn():
+        r = await client.get("https://imginn.com/the.bubble/", headers=headers)
+        soup = BeautifulSoup(r.text, "lxml")
+        posts = []
+        for item in soup.select(".item"):
+            img = item.select_one("img")
+            src = (img.get("data-src") or img.get("src")) if img else None
+            caption = (img.get("alt") or "").strip() if img else ""
+            if src and src.startswith("http"):
+                posts.append({"image": src, "caption": caption})
+        return posts
+
+    async def _try_picuki():
+        r = await client.get("https://www.picuki.com/profile/the.bubble", headers=headers)
+        soup = BeautifulSoup(r.text, "lxml")
+        posts = []
+        for item in soup.select(".box-photo"):
+            img = item.select_one("img")
+            src = (img.get("src") or img.get("data-src")) if img else None
+            caption = (item.select_one(".photo-description") or {}).get_text(strip=True) if item.select_one(".photo-description") else ""
+            if src and src.startswith("http"):
+                posts.append({"image": src, "caption": caption})
+        return posts
+
+    try:
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+            posts = await _try_imginn()
+            if not posts:
+                posts = await _try_picuki()
+        if posts:
+            _cache[cache_key] = {"ts": now, "data": posts}
+        return posts
+    except Exception:
+        return []
+
+
 @app.get("/api/onion")
 async def get_onion():
     cache_key = "onion"

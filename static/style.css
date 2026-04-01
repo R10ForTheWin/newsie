@@ -136,105 +136,46 @@ body {
 .icon-btn:active { opacity: 0.4; }
 .icon-btn.spinning svg { animation: spin 0.65s linear infinite; }
 
-/* ── Onion card ── */
-.onion-card {
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-  background: #1a3d1a;
-  border-radius: var(--radius);
-  overflow: hidden;
-  margin: 12px 16px 0;
-  cursor: pointer;
-  text-decoration: none;
-  -webkit-tap-highlight-color: transparent;
-  transition: opacity 0.15s;
-  min-height: 90px;
-}
-.onion-card:active { opacity: 0.7; }
-.onion-img {
-  width: 110px;
-  flex-shrink: 0;
-  object-fit: cover;
-  transition: opacity 0.3s;
-}
-.onion-img.fade { opacity: 0; }
-.onion-body {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 6px;
-  padding: 12px 14px;
-  flex: 1;
-}
-.onion-badge {
-  align-self: flex-start;
-  background: #3a7d3a;
-  color: #c8f0c8;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  padding: 3px 7px;
-  border-radius: 4px;
-}
-.onion-headline {
-  font-size: 13px;
-  font-weight: 600;
-  color: #c8f0c8;
-  line-height: 1.35;
-  transition: opacity 0.3s;
-}
-.onion-headline.fade { opacity: 0; }
 
 /* ── Bubble card ── */
 .bubble-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045);
+  display: block;
+  background: #000;
   border-radius: var(--radius);
-  padding: 12px 14px;
+  overflow: hidden;
   margin: 8px 16px 0;
   cursor: pointer;
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
-  transition: opacity 0.15s;
 }
-.bubble-card:active { opacity: 0.8; }
-.bubble-ig-icon {
-  flex-shrink: 0;
-  width: 40px;
-  height: 40px;
+.bubble-card:active { opacity: 0.85; }
+.bubble-header {
   display: flex;
   align-items: center;
-  justify-content: center;
-  background: rgba(255,255,255,0.15);
-  border-radius: 10px;
-}
-.bubble-body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
+  padding: 8px 12px;
+  background: linear-gradient(90deg, #833ab4, #fd1d1d, #fcb045);
 }
 .bubble-badge {
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.7);
-}
-.bubble-name {
-  font-size: 15px;
+  font-size: 11px;
   font-weight: 700;
   color: #fff;
+  letter-spacing: 0.2px;
 }
-.bubble-sub {
-  font-size: 11px;
-  color: rgba(255,255,255,0.7);
+.bubble-img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  transition: opacity 0.3s;
 }
-.bubble-chevron { flex-shrink: 0; }
+.bubble-caption {
+  padding: 8px 12px 10px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.75);
+  line-height: 1.4;
+  margin: 0;
+  background: #111;
+}
 
 /* ── Market ticker ── */
 .ticker-bar {

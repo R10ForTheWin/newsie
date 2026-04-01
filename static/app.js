@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadSources().then(() => loadArticles());
   initTicker();
   initOnion();
-  injectBubbleCard();
+  initBubble();
 });
 
 // ── Header ─────────────────────────────────────────────────────────────────
@@ -137,7 +137,7 @@ async function loadArticles() {
 // ── Feed Render ────────────────────────────────────────────────────────────
 function renderFeed() {
   const feed = document.getElementById('feed');
-  const articles = applySourceSettings(applyPrefs(state.articles));
+  const articles = spliceOnionIntoFeed(applySourceSettings(applyPrefs(state.articles)));
 
   if (!articles.length) {
     feed.innerHTML = '<div class="empty-state"><p>No articles.</p></div>';
@@ -148,8 +148,9 @@ function renderFeed() {
 
   // Hero: first article with large image
   frag.appendChild(buildHeroCard(articles[0]));
-  // Pinned cards re-injected after render
-  setTimeout(() => { injectOnionCard(); injectBubbleCard(); }, 0);
+  // Bubble card re-injected after render
+  setTimeout(injectBubbleCard, 0);
+
 
   // 2-col grid: next articles that have images
   const withImg  = articles.slice(1).filter(a => a.image);
@@ -1062,67 +1063,63 @@ function formatTickerPrice(label, price) {
 }
 function iconSearch()    { return `<svg ${svgAttr}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`; }
 
-// ── The Onion ──────────────────────────────────────────────────────────────
+// ── The Onion (peppered into feed as regular articles) ────────────────────
 let _onionHeadlines = [];
-let _onionIdx = 0;
-let _onionInterval = null;
 
 async function initOnion() {
   try {
     _onionHeadlines = await fetch('/api/onion').then(r => r.json());
   } catch (_) { return; }
-  if (!_onionHeadlines.length) return;
-  _onionIdx = Math.floor(Math.random() * _onionHeadlines.length);
-  injectOnionCard();
-  _onionInterval = setInterval(rotateOnion, 8000);
+  // Re-render feed so Onion articles get spliced in
+  if (_onionHeadlines.length && state.articles.length) renderFeed();
 }
 
-function injectOnionCard() {
-  removeOnionCard();
-  const feed = document.getElementById('feed');
-  if (!feed || !_onionHeadlines.length) return;
-  const item = _onionHeadlines[_onionIdx];
-  const card = document.createElement('a');
-  card.id = 'onion-card';
-  card.className = 'onion-card';
-  card.href = item.link;
-  card.target = '_blank';
-  card.rel = 'noopener noreferrer';
-  card.innerHTML = `
-    ${item.image ? `<img class="onion-img" src="${esc(item.image)}" alt="">` : ''}
-    <div class="onion-body">
-      <span class="onion-badge">The Onion</span>
-      <span class="onion-headline">${esc(item.title)}</span>
-    </div>`;
-  feed.insertBefore(card, feed.firstChild);
+function spliceOnionIntoFeed(articles) {
+  if (!_onionHeadlines.length) return articles;
+  const result = [];
+  let onionI = 0;
+  articles.forEach((a, i) => {
+    result.push(a);
+    if ((i + 1) % 5 === 0 && onionI < _onionHeadlines.length) {
+      const item = _onionHeadlines[onionI++];
+      result.push({
+        id: 'onion-' + item.link,
+        title: item.title,
+        link: item.link,
+        image: item.image || null,
+        source: 'The Onion',
+        source_id: 'theonion',
+        source_short: 'The Onion',
+        color: '#3a7d3a',
+        tab: 'today',
+        priority: 0,
+        published: new Date().toISOString(),
+        time_ago: 'satire',
+      });
+    }
+  });
+  return result;
 }
 
-function removeOnionCard() {
-  document.getElementById('onion-card')?.remove();
+// ── The Bubble (rotating image card) ─────────────────────────────────────
+let _bubblePosts = [];
+let _bubbleIdx = 0;
+
+async function initBubble() {
+  try {
+    _bubblePosts = await fetch('/api/bubble').then(r => r.json());
+  } catch (_) { return; }
+  if (!_bubblePosts.length) return;
+  _bubbleIdx = 0;
+  injectBubbleCard();
+  setInterval(rotateBubble, 10000);
 }
 
-function rotateOnion() {
-  const card = document.getElementById('onion-card');
-  if (!card || !_onionHeadlines.length) return;
-  const headline = card.querySelector('.onion-headline');
-  const img = card.querySelector('.onion-img');
-  headline.classList.add('fade');
-  if (img) img.classList.add('fade');
-  setTimeout(() => {
-    _onionIdx = (_onionIdx + 1) % _onionHeadlines.length;
-    const item = _onionHeadlines[_onionIdx];
-    card.href = item.link;
-    headline.textContent = item.title;
-    headline.classList.remove('fade');
-    if (img && item.image) { img.src = item.image; img.classList.remove('fade'); }
-  }, 300);
-}
-
-// ── The Bubble (Instagram pinned card) ────────────────────────────────────
 function injectBubbleCard() {
   document.getElementById('bubble-card')?.remove();
   const feed = document.getElementById('feed');
-  if (!feed) return;
+  if (!feed || !_bubblePosts.length) return;
+  const post = _bubblePosts[_bubbleIdx];
   const card = document.createElement('a');
   card.id = 'bubble-card';
   card.className = 'bubble-card';
@@ -1130,21 +1127,34 @@ function injectBubbleCard() {
   card.target = '_blank';
   card.rel = 'noopener noreferrer';
   card.innerHTML = `
-    <div class="bubble-ig-icon">
-      <svg viewBox="0 0 24 24" fill="none" width="22" height="22">
-        <rect x="2" y="2" width="20" height="20" rx="5" ry="5" stroke="white" stroke-width="1.8"/>
-        <circle cx="12" cy="12" r="5" stroke="white" stroke-width="1.8"/>
-        <circle cx="17.5" cy="6.5" r="1.2" fill="white"/>
-      </svg>
+    <div class="bubble-header">
+      <span class="bubble-badge">
+        <svg viewBox="0 0 24 24" fill="none" width="11" height="11" style="vertical-align:-1px;margin-right:4px">
+          <rect x="2" y="2" width="20" height="20" rx="5" stroke="currentColor" stroke-width="2"/>
+          <circle cx="12" cy="12" r="4.5" stroke="currentColor" stroke-width="2"/>
+          <circle cx="17.5" cy="6.5" r="1.2" fill="currentColor"/>
+        </svg>@the.bubble
+      </span>
     </div>
-    <div class="bubble-body">
-      <span class="bubble-badge">Instagram</span>
-      <span class="bubble-name">@the.bubble</span>
-      <span class="bubble-sub">Tap to view latest posts</span>
-    </div>
-    <svg class="bubble-chevron" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2" stroke-linecap="round" width="16" height="16"><polyline points="9 18 15 12 9 6"/></svg>`;
-  // insert after onion card if present, else at top
+    <img class="bubble-img" id="bubble-img" src="${esc(post.image)}" alt="${esc(post.caption)}">
+    ${post.caption ? `<p class="bubble-caption" id="bubble-caption">${esc(post.caption.slice(0, 120))}${post.caption.length > 120 ? '…' : ''}</p>` : ''}`;
   const onion = document.getElementById('onion-card');
   if (onion?.nextSibling) feed.insertBefore(card, onion.nextSibling);
   else feed.insertBefore(card, feed.firstChild);
+}
+
+function rotateBubble() {
+  if (!_bubblePosts.length) return;
+  _bubbleIdx = (_bubbleIdx + 1) % _bubblePosts.length;
+  const post = _bubblePosts[_bubbleIdx];
+  const img = document.getElementById('bubble-img');
+  const cap = document.getElementById('bubble-caption');
+  if (!img) return;
+  img.style.opacity = '0';
+  setTimeout(() => {
+    img.src = post.image;
+    img.alt = post.caption;
+    if (cap) cap.textContent = post.caption ? post.caption.slice(0, 120) + (post.caption.length > 120 ? '…' : '') : '';
+    img.style.opacity = '1';
+  }, 300);
 }
