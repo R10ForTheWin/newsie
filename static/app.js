@@ -1073,23 +1073,26 @@ async function initOnion() {
 function splicePinnedIntoFeed(articles) {
   const pinned = [];
 
-  // One Onion article per session, inserted around position 10
+  // Three Onion articles woven throughout the feed
   if (_onionHeadlines.length) {
-    const item = _onionHeadlines[Math.floor(Math.random() * _onionHeadlines.length)];
-    pinned.push({ at: 9, article: {
-      id: 'onion-' + item.link,
-      title: item.title,
-      link: item.link,
-      image: item.image || null,
-      source: 'The Onion',
-      source_id: 'theonion',
-      source_short: 'The Onion',
-      color: '#3a7d3a',
-      tab: 'today',
-      priority: 0,
-      published: new Date().toISOString(),
-      time_ago: 'satire',
-    }});
+    const shuffled = [..._onionHeadlines].sort(() => Math.random() - 0.5);
+    [7, 16, 27].forEach((pos, i) => {
+      const item = shuffled[i % shuffled.length];
+      pinned.push({ at: pos, article: {
+        id: 'onion-' + i + '-' + item.link,
+        title: item.title,
+        link: item.link,
+        image: item.image || null,
+        source: 'The Onion',
+        source_id: 'theonion',
+        source_short: 'The Onion',
+        color: '#3a7d3a',
+        tab: 'today',
+        priority: 0,
+        published: new Date().toISOString(),
+        time_ago: 'satire',
+      }});
+    });
   }
 
   // A few Bubble posts spread through the feed
