@@ -214,13 +214,13 @@ async def get_articles(tab: str = "today", source: Optional[str] = None):
                 "category": feed_config["category"],
                 "color": feed_config["color"],
                 "tab": feed_config["tab"],
+                "priority": feed_config.get("priority", 99),
                 "published": pub.isoformat(),
                 "time_ago": time_ago(pub),
             })
 
-    TAB_PRIORITY = {"today": 0, "entertainment": 1, "sports": 2, "magazines": 3}
     articles.sort(key=lambda x: x["published"], reverse=True)          # 1st: newest first
-    articles.sort(key=lambda x: TAB_PRIORITY.get(x["tab"], 99))        # 2nd: priority tier (stable)
+    articles.sort(key=lambda x: x["priority"])                          # 2nd: source priority (stable)
     result = {"articles": articles, "count": len(articles), "tab": tab}
     _cache[cache_key] = {"ts": now, "data": result}
     return result
