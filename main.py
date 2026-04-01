@@ -289,10 +289,17 @@ async def get_onion():
     try:
         entries = await fetch_feed("https://www.theonion.com/rss")
         headlines = [
-            {"title": e.get("title", "").strip(), "link": e.get("link", "")}
+            {"title": e.get("title", "").strip(), "link": e.get("link", ""), "image": extract_image(e)}
             for e in (entries or [])
             if e.get("title") and e.get("link")
         ]
+        # fetch OG images for entries missing one
+        async with httpx.AsyncClient(timeout=6, follow_redirects=True, headers=HEADERS) as client:
+            async def _fill_image(h):
+                if not h["image"]:
+                    h["image"] = await fetch_og_image(h["link"])
+                return h
+            headlines = list(await asyncio.gather(*[_fill_image(h) for h in headlines]))
         _cache[cache_key] = {"ts": now, "data": headlines}
         return headlines
     except Exception:

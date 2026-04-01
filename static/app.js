@@ -1087,7 +1087,12 @@ function injectOnionCard() {
   card.href = item.link;
   card.target = '_blank';
   card.rel = 'noopener noreferrer';
-  card.innerHTML = `<span class="onion-badge">The Onion</span><span class="onion-headline">${esc(item.title)}</span>`;
+  card.innerHTML = `
+    ${item.image ? `<img class="onion-img" src="${esc(item.image)}" alt="">` : ''}
+    <div class="onion-body">
+      <span class="onion-badge">The Onion</span>
+      <span class="onion-headline">${esc(item.title)}</span>
+    </div>`;
   feed.insertBefore(card, feed.firstChild);
 }
 
@@ -1099,12 +1104,15 @@ function rotateOnion() {
   const card = document.getElementById('onion-card');
   if (!card || !_onionHeadlines.length) return;
   const headline = card.querySelector('.onion-headline');
+  const img = card.querySelector('.onion-img');
   headline.classList.add('fade');
+  if (img) img.classList.add('fade');
   setTimeout(() => {
     _onionIdx = (_onionIdx + 1) % _onionHeadlines.length;
     const item = _onionHeadlines[_onionIdx];
     card.href = item.link;
     headline.textContent = item.title;
     headline.classList.remove('fade');
+    if (img && item.image) { img.src = item.image; img.classList.remove('fade'); }
   }, 300);
 }
