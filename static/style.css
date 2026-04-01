@@ -137,45 +137,6 @@ body {
 .icon-btn.spinning svg { animation: spin 0.65s linear infinite; }
 
 
-/* ── Bubble card ── */
-.bubble-card {
-  display: block;
-  background: #000;
-  border-radius: var(--radius);
-  overflow: hidden;
-  margin: 8px 16px 0;
-  cursor: pointer;
-  text-decoration: none;
-  -webkit-tap-highlight-color: transparent;
-}
-.bubble-card:active { opacity: 0.85; }
-.bubble-header {
-  display: flex;
-  align-items: center;
-  padding: 8px 12px;
-  background: linear-gradient(90deg, #833ab4, #fd1d1d, #fcb045);
-}
-.bubble-badge {
-  font-size: 11px;
-  font-weight: 700;
-  color: #fff;
-  letter-spacing: 0.2px;
-}
-.bubble-img {
-  display: block;
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  object-fit: cover;
-  transition: opacity 0.3s;
-}
-.bubble-caption {
-  padding: 8px 12px 10px;
-  font-size: 12px;
-  color: rgba(255,255,255,0.75);
-  line-height: 1.4;
-  margin: 0;
-  background: #111;
-}
 
 /* ── Market ticker ── */
 .ticker-bar {

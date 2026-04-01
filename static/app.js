@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadSources().then(() => loadArticles());
   initTicker();
   initOnion();
-  initBubble();
+  initBubble().then(() => { if (state.articles.length) renderFeed(); });
 });
 
 // ── Header ─────────────────────────────────────────────────────────────────
@@ -137,7 +137,7 @@ async function loadArticles() {
 // ── Feed Render ────────────────────────────────────────────────────────────
 function renderFeed() {
   const feed = document.getElementById('feed');
-  const articles = spliceOnionIntoFeed(applySourceSettings(applyPrefs(state.articles)));
+  const articles = splicePinnedIntoFeed(applySourceSettings(applyPrefs(state.articles)));
 
   if (!articles.length) {
     feed.innerHTML = '<div class="empty-state"><p>No articles.</p></div>';
@@ -148,8 +148,6 @@ function renderFeed() {
 
   // Hero: first article with large image
   frag.appendChild(buildHeroCard(articles[0]));
-  // Bubble card re-injected after render
-  setTimeout(injectBubbleCard, 0);
 
 
   // 2-col grid: next articles that have images
@@ -1069,92 +1067,70 @@ let _onionHeadlines = [];
 async function initOnion() {
   try {
     _onionHeadlines = await fetch('/api/onion').then(r => r.json());
-  } catch (_) { return; }
-  // Re-render feed so Onion articles get spliced in
-  if (_onionHeadlines.length && state.articles.length) renderFeed();
+  } catch (_) {}
 }
 
-function spliceOnionIntoFeed(articles) {
-  if (!_onionHeadlines.length) return articles;
-  const result = [];
-  let onionI = 0;
-  articles.forEach((a, i) => {
-    result.push(a);
-    if ((i + 1) % 5 === 0 && onionI < _onionHeadlines.length) {
-      const item = _onionHeadlines[onionI++];
-      result.push({
-        id: 'onion-' + item.link,
-        title: item.title,
-        link: item.link,
-        image: item.image || null,
-        source: 'The Onion',
-        source_id: 'theonion',
-        source_short: 'The Onion',
-        color: '#3a7d3a',
+function splicePinnedIntoFeed(articles) {
+  const pinned = [];
+
+  // One Onion article per session, inserted around position 10
+  if (_onionHeadlines.length) {
+    const item = _onionHeadlines[Math.floor(Math.random() * _onionHeadlines.length)];
+    pinned.push({ at: 9, article: {
+      id: 'onion-' + item.link,
+      title: item.title,
+      link: item.link,
+      image: item.image || null,
+      source: 'The Onion',
+      source_id: 'theonion',
+      source_short: 'The Onion',
+      color: '#3a7d3a',
+      tab: 'today',
+      priority: 0,
+      published: new Date().toISOString(),
+      time_ago: 'satire',
+    }});
+  }
+
+  // A few Bubble posts spread through the feed
+  if (_bubblePosts.length) {
+    [4, 14, 24].forEach((pos, i) => {
+      const post = _bubblePosts[i % _bubblePosts.length];
+      if (!post) return;
+      pinned.push({ at: pos, article: {
+        id: 'bubble-' + pos,
+        title: post.caption || 'Check out @the.bubble',
+        link: 'https://www.instagram.com/the.bubble/',
+        image: post.image || null,
+        source: '@the.bubble',
+        source_id: 'bubble',
+        source_short: 'The Bubble',
+        color: '#833ab4',
         tab: 'today',
         priority: 0,
         published: new Date().toISOString(),
-        time_ago: 'satire',
-      });
-    }
+        time_ago: 'instagram',
+      }});
+    });
+  }
+
+  if (!pinned.length) return articles;
+  pinned.sort((a, b) => a.at - b.at);
+  const result = [...articles];
+  let offset = 0;
+  pinned.forEach(({ at, article }) => {
+    const idx = Math.min(at + offset, result.length);
+    result.splice(idx, 0, article);
+    offset++;
   });
   return result;
 }
 
-// ── The Bubble (rotating image card) ─────────────────────────────────────
+// ── The Bubble ────────────────────────────────────────────────────────────
 let _bubblePosts = [];
-let _bubbleIdx = 0;
 
 async function initBubble() {
   try {
     _bubblePosts = await fetch('/api/bubble').then(r => r.json());
-  } catch (_) { return; }
-  if (!_bubblePosts.length) return;
-  _bubbleIdx = 0;
-  injectBubbleCard();
-  setInterval(rotateBubble, 10000);
-}
-
-function injectBubbleCard() {
-  document.getElementById('bubble-card')?.remove();
-  const feed = document.getElementById('feed');
-  if (!feed || !_bubblePosts.length) return;
-  const post = _bubblePosts[_bubbleIdx];
-  const card = document.createElement('a');
-  card.id = 'bubble-card';
-  card.className = 'bubble-card';
-  card.href = 'https://www.instagram.com/the.bubble/';
-  card.target = '_blank';
-  card.rel = 'noopener noreferrer';
-  card.innerHTML = `
-    <div class="bubble-header">
-      <span class="bubble-badge">
-        <svg viewBox="0 0 24 24" fill="none" width="11" height="11" style="vertical-align:-1px;margin-right:4px">
-          <rect x="2" y="2" width="20" height="20" rx="5" stroke="currentColor" stroke-width="2"/>
-          <circle cx="12" cy="12" r="4.5" stroke="currentColor" stroke-width="2"/>
-          <circle cx="17.5" cy="6.5" r="1.2" fill="currentColor"/>
-        </svg>@the.bubble
-      </span>
-    </div>
-    <img class="bubble-img" id="bubble-img" src="${esc(post.image)}" alt="${esc(post.caption)}">
-    ${post.caption ? `<p class="bubble-caption" id="bubble-caption">${esc(post.caption.slice(0, 120))}${post.caption.length > 120 ? '…' : ''}</p>` : ''}`;
-  const onion = document.getElementById('onion-card');
-  if (onion?.nextSibling) feed.insertBefore(card, onion.nextSibling);
-  else feed.insertBefore(card, feed.firstChild);
-}
-
-function rotateBubble() {
-  if (!_bubblePosts.length) return;
-  _bubbleIdx = (_bubbleIdx + 1) % _bubblePosts.length;
-  const post = _bubblePosts[_bubbleIdx];
-  const img = document.getElementById('bubble-img');
-  const cap = document.getElementById('bubble-caption');
-  if (!img) return;
-  img.style.opacity = '0';
-  setTimeout(() => {
-    img.src = post.image;
-    img.alt = post.caption;
-    if (cap) cap.textContent = post.caption ? post.caption.slice(0, 120) + (post.caption.length > 120 ? '…' : '') : '';
-    img.style.opacity = '1';
-  }, 300);
+  } catch (_) {}
 }
