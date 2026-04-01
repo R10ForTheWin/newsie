@@ -1008,6 +1008,8 @@ body {
 .settings-body {
   flex: 1;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding: 20px 16px;
   display: flex;
   flex-direction: column;
