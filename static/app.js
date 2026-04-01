@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupSettings();
   loadSources().then(() => loadArticles());
   initTicker();
+  initOnion();
 });
 
 // ── Header ─────────────────────────────────────────────────────────────────
@@ -146,6 +147,8 @@ function renderFeed() {
 
   // Hero: first article with large image
   frag.appendChild(buildHeroCard(articles[0]));
+  // Onion card re-injected after render
+  setTimeout(injectOnionCard, 0);
 
   // 2-col grid: next articles that have images
   const withImg  = articles.slice(1).filter(a => a.image);
@@ -1055,3 +1058,51 @@ function formatTickerPrice(label, price) {
   return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function iconSearch()    { return `<svg ${svgAttr}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`; }
+
+// ── The Onion ──────────────────────────────────────────────────────────────
+let _onionHeadlines = [];
+let _onionIdx = 0;
+let _onionInterval = null;
+
+async function initOnion() {
+  try {
+    _onionHeadlines = await fetch('/api/onion').then(r => r.json());
+  } catch (_) { return; }
+  if (!_onionHeadlines.length) return;
+  _onionIdx = Math.floor(Math.random() * _onionHeadlines.length);
+  injectOnionCard();
+  _onionInterval = setInterval(rotateOnion, 8000);
+}
+
+function injectOnionCard() {
+  removeOnionCard();
+  const feed = document.getElementById('feed');
+  if (!feed || !_onionHeadlines.length) return;
+  const item = _onionHeadlines[_onionIdx];
+  const card = document.createElement('a');
+  card.id = 'onion-card';
+  card.className = 'onion-card';
+  card.href = item.link;
+  card.target = '_blank';
+  card.rel = 'noopener noreferrer';
+  card.innerHTML = `<span class="onion-badge">The Onion</span><span class="onion-headline">${esc(item.title)}</span>`;
+  feed.insertBefore(card, feed.firstChild);
+}
+
+function removeOnionCard() {
+  document.getElementById('onion-card')?.remove();
+}
+
+function rotateOnion() {
+  const card = document.getElementById('onion-card');
+  if (!card || !_onionHeadlines.length) return;
+  const headline = card.querySelector('.onion-headline');
+  headline.classList.add('fade');
+  setTimeout(() => {
+    _onionIdx = (_onionIdx + 1) % _onionHeadlines.length;
+    const item = _onionHeadlines[_onionIdx];
+    card.href = item.link;
+    headline.textContent = item.title;
+    headline.classList.remove('fade');
+  }, 300);
+}

@@ -280,6 +280,25 @@ async def get_markets():
     return result
 
 
+@app.get("/api/onion")
+async def get_onion():
+    cache_key = "onion"
+    now = time.time()
+    if cache_key in _cache and now - _cache[cache_key]["ts"] < 1800:  # 30-min cache
+        return _cache[cache_key]["data"]
+    try:
+        entries = await fetch_feed("https://www.theonion.com/rss")
+        headlines = [
+            {"title": e.get("title", "").strip(), "link": e.get("link", "")}
+            for e in (entries or [])
+            if e.get("title") and e.get("link")
+        ]
+        _cache[cache_key] = {"ts": now, "data": headlines}
+        return headlines
+    except Exception:
+        return []
+
+
 @app.get("/api/sources")
 async def get_sources():
     from feeds import FEEDS
