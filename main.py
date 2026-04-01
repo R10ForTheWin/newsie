@@ -296,23 +296,35 @@ async def get_markets():
 
 
 async def _fetch_mortgage_rate() -> dict | None:
-    """Fetch 30-year fixed rate from Freddie Mac PMMS page (weekly)."""
+    """Fetch 30-year fixed rate — tries Freddie Mac JSON-LD, then raw HTML regex."""
+    headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"}
     try:
         async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
-            r = await client.get(
-                "https://www.freddiemac.com/pmms",
-                headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"},
-            )
-        soup = BeautifulSoup(r.text, "lxml")
+            r = await client.get("https://www.freddiemac.com/pmms", headers=headers)
+        html = r.text
+        soup = BeautifulSoup(html, "lxml")
+
+        # Try JSON-LD scripts (use get_text() — script.string is None if tag has children)
         for script in soup.find_all("script", type="application/ld+json"):
             try:
-                data = json.loads(script.string or "")
-                desc = data.get("description", "")
-                m = re.search(r'averaged\s+(\d+\.\d+)%', desc)
-                if m:
-                    return {"label": "30yr Mtg", "price": float(m.group(1)), "change": 0, "pct": None}
+                raw = script.get_text() or ""
+                data = json.loads(raw)
+                # Handle both direct and @graph-wrapped structures
+                items = data.get("@graph", [data])
+                for item in items:
+                    desc = item.get("description", "")
+                    m = re.search(r'averaged\s+(\d+\.\d+)%', desc)
+                    if m:
+                        return {"label": "30yr Mtg", "price": float(m.group(1)), "change": 0, "pct": None}
             except Exception:
                 continue
+
+        # Fallback: grep the raw HTML for the rate pattern
+        m = re.search(r'(\d+\.\d+)%.*?30.year', html) or re.search(r'30.year.*?(\d+\.\d+)%', html)
+        if m:
+            rate = float(m.group(1))
+            if 3.0 <= rate <= 12.0:  # sanity check
+                return {"label": "30yr Mtg", "price": rate, "change": 0, "pct": None}
     except Exception:
         pass
     return None

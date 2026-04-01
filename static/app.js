@@ -177,11 +177,33 @@ function renderFeed() {
     withImg.unshift(...gridItems);
   }
 
-  // Group by category, ordered by category priority then article recency
+  // Guarantee one Onion article in the top 10 — inject it right after the grid
+  const allRemaining = [...withImg, ...withoutImg];
+  const onionIdx = allRemaining.findIndex(a => a.source_id && a.source_id.startsWith('theonion-'));
+  if (onionIdx !== -1) {
+    const [onionArticle] = allRemaining.splice(onionIdx, 1);
+    // rebuild withImg / withoutImg without this article
+    withImg.length = 0; withoutImg.length = 0;
+    allRemaining.forEach(a => (a.image ? withImg : withoutImg).push(a));
+    const satireSection = document.createElement('div');
+    satireSection.className = 'news-section';
+    if (state.currentSource === 'all') {
+      const hdr = document.createElement('div');
+      hdr.className = 'section-from-header';
+      hdr.innerHTML = `<span class="section-from-name section-category-name">Satire</span>`;
+      satireSection.appendChild(hdr);
+    }
+    satireSection.appendChild(buildRowCard(onionArticle));
+    frag.appendChild(satireSection);
+  }
+
+  // Group by category (max 8 per section), ordered by category priority then article recency
   const CAT_ORDER = ['News', 'Business', 'Tech', 'Entertainment', 'Sports', 'Lifestyle', 'Automotive', 'Memes', 'Politics'];
   const CAT_DISPLAY = { 'News': 'Current Events' };
+  const CAT_MAX = 8;
   const byCategory = new Map();
   [...withImg, ...withoutImg]
+    .filter(a => !(a.source_id && a.source_id.startsWith('theonion-')))  // remaining Onion articles skip
     .sort((a, b) => {
       const ca = CAT_ORDER.indexOf(a.category || 'News');
       const cb = CAT_ORDER.indexOf(b.category || 'News');
@@ -193,7 +215,7 @@ function renderFeed() {
     .forEach(a => {
       const cat = a.category || 'News';
       if (!byCategory.has(cat)) byCategory.set(cat, []);
-      byCategory.get(cat).push(a);
+      if (byCategory.get(cat).length < CAT_MAX) byCategory.get(cat).push(a);
     });
 
   byCategory.forEach((catArticles, cat) => {
