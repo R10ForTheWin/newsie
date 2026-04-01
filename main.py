@@ -24,7 +24,7 @@ CACHE_TTL = 900  # 15 minutes
 MAX_PER_FEED = 15
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; Newsie/1.0; RSS Reader)"
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 }
 
 

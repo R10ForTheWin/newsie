@@ -372,6 +372,27 @@ FEEDS = [
         "priority": 5,
         "is_magazine": True,
     },
+    # ── Memes ─────────────────────────────────────────────────────────────
+    {
+        "id": "memes",
+        "name": "r/memes",
+        "short": "r/memes",
+        "urls": ["https://www.reddit.com/r/memes/.rss"],
+        "category": "Memes",
+        "color": "#FF4500",
+        "tab": "entertainment",
+        "priority": 3,
+    },
+    {
+        "id": "dankmemes",
+        "name": "r/dankmemes",
+        "short": "r/dankmemes",
+        "urls": ["https://www.reddit.com/r/dankmemes/.rss"],
+        "category": "Memes",
+        "color": "#FF6534",
+        "tab": "entertainment",
+        "priority": 3,
+    },
     # ── ESPN (bottom) ─────────────────────────────────────────────────────
     {
         "id": "espn",
