@@ -320,9 +320,15 @@ body {
 .section-category-name {
   color: var(--label-1);
   text-transform: uppercase;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+}
+.news-section + .news-section {
+  margin-top: 6px;
+}
+.section-from-header {
+  background: var(--fill-1, rgba(120,120,128,0.08));
 }
 .section-see-all {
   font-size: 14px;

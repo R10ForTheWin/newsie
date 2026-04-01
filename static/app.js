@@ -178,7 +178,8 @@ function renderFeed() {
   }
 
   // Group by category, ordered by category priority then article recency
-  const CAT_ORDER = ['News', 'Business', 'Tech', 'Entertainment', 'Sports', 'Lifestyle', 'Automotive', 'Memes'];
+  const CAT_ORDER = ['News', 'Business', 'Tech', 'Entertainment', 'Sports', 'Lifestyle', 'Automotive', 'Memes', 'Politics'];
+  const CAT_DISPLAY = { 'News': 'Current Events' };
   const byCategory = new Map();
   [...withImg, ...withoutImg]
     .sort((a, b) => {
@@ -201,7 +202,7 @@ function renderFeed() {
     if (state.currentSource === 'all') {
       const hdr = document.createElement('div');
       hdr.className = 'section-from-header';
-      hdr.innerHTML = `<span class="section-from-name section-category-name">${esc(cat)}</span>`;
+      hdr.innerHTML = `<span class="section-from-name section-category-name">${esc(CAT_DISPLAY[cat] || cat)}</span>`;
       section.appendChild(hdr);
     }
     catArticles.forEach(a => section.appendChild(buildRowCard(a)));
@@ -1049,15 +1050,14 @@ function renderTicker(items) {
 
   function makeItems() {
     return items.map(item => {
-      const up = item.pct >= 0;
-      const arrow = up ? '▲' : '▼';
-      const cls = up ? 'ticker-up' : 'ticker-down';
       const price = formatTickerPrice(item.label, item.price);
-      const pct = Math.abs(item.pct).toFixed(2) + '%';
+      const changeHtml = item.pct != null
+        ? `<span class="ticker-change ${item.pct >= 0 ? 'ticker-up' : 'ticker-down'}">${item.pct >= 0 ? '▲' : '▼'} ${Math.abs(item.pct).toFixed(2)}%</span>`
+        : '';
       return `<span class="ticker-item">
         <span class="ticker-label">${item.label}</span>
         <span class="ticker-price">${price}</span>
-        <span class="ticker-change ${cls}">${arrow} ${pct}</span>
+        ${changeHtml}
       </span>`;
     }).join('');
   }
@@ -1068,9 +1068,10 @@ function renderTicker(items) {
 }
 
 function formatTickerPrice(label, price) {
-  if (label === 'Bitcoin') return '$' + price.toLocaleString('en-US', { maximumFractionDigits: 0 });
-  if (label === 'Gold')    return '$' + price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  if (label === 'Rivian')  return '$' + price.toFixed(2);
+  if (label === 'Bitcoin')   return '$' + price.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  if (label === 'Gold')      return '$' + price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (label === 'Rivian')    return '$' + price.toFixed(2);
+  if (label === '30yr Mtg')  return price.toFixed(2) + '%';
   return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 function iconSearch()    { return `<svg ${svgAttr}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`; }

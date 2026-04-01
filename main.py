@@ -1,4 +1,5 @@
 import asyncio
+import json
 import re
 import time
 import urllib.parse
@@ -285,10 +286,36 @@ async def get_markets():
     btc = await _fetch_bitcoin()
     if btc:
         result.insert(2, btc)  # after S&P 500 and Dow Jones
+    mtg = await _fetch_mortgage_rate()
+    if mtg:
+        result.append(mtg)
 
     if result:
         _cache[cache_key] = {"ts": now, "data": result}
     return result
+
+
+async def _fetch_mortgage_rate() -> dict | None:
+    """Fetch 30-year fixed rate from Freddie Mac PMMS page (weekly)."""
+    try:
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+            r = await client.get(
+                "https://www.freddiemac.com/pmms",
+                headers={"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"},
+            )
+        soup = BeautifulSoup(r.text, "lxml")
+        for script in soup.find_all("script", type="application/ld+json"):
+            try:
+                data = json.loads(script.string or "")
+                desc = data.get("description", "")
+                m = re.search(r'averaged\s+(\d+\.\d+)%', desc)
+                if m:
+                    return {"label": "30yr Mtg", "price": float(m.group(1)), "change": 0, "pct": None}
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return None
 
 
 def _weather_emoji(code: int) -> str:
