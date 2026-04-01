@@ -808,7 +808,9 @@ function setupSettings() {
   }
 
   function closeSettings() {
+    panel.style.transform = '';
     panel.classList.add('hidden');
+    overlay.style.opacity = '';
     overlay.classList.add('hidden');
     // reload feed to reflect changes
     state.articles = [];
